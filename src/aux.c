@@ -2,15 +2,69 @@
 
 int main(int argc, char *argv[]){
 
+    struct t2fs_superbloco superbloco  = ReadSuperbloco();
+    struct t2fs_record entrada = ReadEntrada(2,superbloco,4);
+    printf("%s \n",entrada.name);
 
 
     return 0;
 }
 
+/*
+
+DWORD LocateDir(char* pathname)
+{
+    struct t2fs_superbloco superbloco  = ReadSuperbloco();
+    DWORD cluster;
+    char name[51]
+    if(pathname[0] == '/')
+        cluster = superbloco.RootDirCluster;
+    int i=1;
+    int j = 0;
+    
+    while(pathname[i] != '\0' && pathname[i] != '/')
+    {
+     
+        name[j] = pathname[i];
+        i++;
+        j++
+    }
+    name[j+1] = '\0';
+    
+    
+
+}
+
+*/
+struct t2fs_record ReadEntrada(DWORD dir_cluster,struct t2fs_superbloco superbloco, int n_entrada)
+{
+    DWORD sector_dir = SetorLogico_ClusterDados(superbloco, dir_cluster);
+        
+    DWORD sector_cluster = sector_dir + n_entrada/4;
+  
+    BYTE* buffer2 = malloc(SECTOR_SIZE);
+    read_sector(sector_cluster,buffer2);
+    
+    DWORD pos_atual = (n_entrada - 4*(sector_cluster-sector_dir))*64; 
+    
+   
+    struct t2fs_record entrada;
+    entrada.TypeVal = buffer2[pos_atual];
+    int i;
+    for(i = 0;i<51;i++)
+        entrada.name[i] = buffer2[pos_atual+i+1];
+    
+    entrada.bytesFileSize = buffer2[pos_atual+52] + buffer2[pos_atual+53]*16*16 + buffer2[pos_atual+54]*16*16*16*16 + buffer2[pos_atual+55]*16*16*16*16*16*16;
+    entrada.clustersFileSize = buffer2[pos_atual+56] + buffer2[pos_atual+57]*16*16 + buffer2[pos_atual+58]*16*16*16*16 + buffer2[pos_atual+59]*16*16*16*16*16*16;
+    entrada.firstCluster = buffer2[pos_atual+60] + buffer2[pos_atual+61]*16*16 + buffer2[pos_atual+62]*16*16*16*16 + buffer2[pos_atual+62]*16*16*16*16*16*16;
+    
+    free(buffer2);
+    return entrada;
+}
 
 struct t2fs_superbloco ReadSuperbloco()
 {
-    BYTE* buffer = malloc(256);
+    BYTE* buffer = malloc(SECTOR_SIZE);
     read_sector(0,buffer);
     struct t2fs_superbloco superbloco;
     
@@ -35,7 +89,7 @@ struct t2fs_superbloco ReadSuperbloco()
 
 DWORD SetorLogico_ClusterDados(struct t2fs_superbloco superbloco, DWORD cluster)
 {
-    DWORD end = (superbloco.DataSectorStart*SECTOR_SIZE) + (SECTOR_SIZE * cluster * superbloco.SectorsPerCluster);
+    DWORD end = (superbloco.DataSectorStart) + (cluster * superbloco.SectorsPerCluster);
     return end;
 }
 
