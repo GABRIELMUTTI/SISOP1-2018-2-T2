@@ -1,14 +1,6 @@
 #include "../include/aux.h"
 
-int main(int argc, char *argv[]){
 
-    struct t2fs_superbloco superbloco  = ReadSuperbloco();
-    struct t2fs_record entrada = ReadEntrada(2,superbloco,4);
-    printf("%s \n",entrada.name);
-
-
-    return 0;
-}
 
 /*
 
@@ -35,20 +27,20 @@ DWORD LocateDir(char* pathname)
 
 }
 
-*/
-struct t2fs_record ReadEntrada(DWORD dir_cluster,struct t2fs_superbloco superbloco, int n_entrada)
+*//*
+struct t2fs_record ReadEntrada(DWORD sector_dir, int n_entrada)
 {
-    DWORD sector_dir = SetorLogico_ClusterDados(superbloco, dir_cluster);
-        
-    DWORD sector_cluster = sector_dir + n_entrada/4;
+ 
+    DWORD sector_entrada = sector_dir + n_entrada/4;
   
     BYTE* buffer2 = malloc(SECTOR_SIZE);
-    read_sector(sector_cluster,buffer2);
+    read_sector(sector_entrada,buffer2);
     
-    DWORD pos_atual = (n_entrada - 4*(sector_cluster-sector_dir))*64; 
+    DWORD pos_atual = (n_entrada - 4*(sector_entrada-sector_dir))*64; 
     
    
     struct t2fs_record entrada;
+    if(entrada == NULL)printf("aloooooo\n");
     entrada.TypeVal = buffer2[pos_atual];
     int i;
     for(i = 0;i<51;i++)
@@ -61,7 +53,7 @@ struct t2fs_record ReadEntrada(DWORD dir_cluster,struct t2fs_superbloco superblo
     free(buffer2);
     return entrada;
 }
-
+*/
 struct t2fs_superbloco ReadSuperbloco()
 {
     BYTE* buffer = malloc(SECTOR_SIZE);

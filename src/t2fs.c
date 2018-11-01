@@ -2,6 +2,22 @@
 #include "../include/aux.h"
 
 
+struct openDir {
+    
+    DIR2 handle;
+    DWORD firstSector;
+    DWORD cluster;
+    int CE;
+
+};
+
+struct openDir DirsHandle[10];
+
+int main(int argc, char *argv[]){
+
+    return 0;
+}
+
 
 int identify2 (char *name, int size);
 
@@ -51,7 +67,33 @@ int getcwd2 (char *pathname, int size);
 DIR2 opendir2 (char *pathname);
 
 
-int readdir2 (DIR2 handle, DIRENT2 *dentry);
+int readdir2 (DIR2 handle, DIRENT2 *dentry)
+{
+     BYTE* buffer2 = malloc(SECTOR_SIZE);
+     
+     //Get dir size
+     if(read_sector(DirsHandle[handle].firstSector ,buffer2)) {free(buffer2);return -1;} //ERROR
+     
+     DWORD file_size = buffer2[52] + buffer2[53]*16*16 + buffer2[54]*16*16*16*16 + buffer2[55]*16*16*16*16*16*16;
+     
+     if(file_size/64 <= DirsHandle[handle].CE) {free(buffer2);return -2;} //END OF FILE
+     
+    DWORD sector_entrada = DirsHandle[handle].firstSector + DirsHandle[handle].CE/4;    
+    DWORD pos_atual = (DirsHandle[handle].CE - 4*(sector_entrada - DirsHandle[handle].firstSector))*64; 
+    
+    if(read_sector(sector_entrada, buffer2)) {free(buffer2);return -1;} //ERROR
+    int i;
+     for(i = 0;i<256;i++)
+        dentry->name[i]=buffer2[pos_atual+i+1];
+        
+     dentry->fileType = buffer2[pos_atual];
+     
+     dentry->fileSize = buffer2[pos_atual+52] + buffer2[pos_atual+53]*16*16 + buffer2[pos_atual+54]*16*16*16*16 + buffer2[pos_atual+55]*16*16*16*16*16*16;
+    
+    DirsHandle[handle].CE++; 
+    free(buffer2);
+    return 0;
+}
 
 
 int closedir2 (DIR2 handle);
