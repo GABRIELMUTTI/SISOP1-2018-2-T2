@@ -5,6 +5,9 @@
 #include <string.h>
 
 
+//escreve uma entrada no diretório
+int WriteEntrada(DWORD cluster_dir, struct t2fs_record entrada);
+
 //acha um cluster vazio na FAT
 int FindFreeCluster();
 

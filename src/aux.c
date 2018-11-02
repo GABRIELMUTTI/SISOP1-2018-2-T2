@@ -8,12 +8,33 @@ int WriteEntrada(DWORD cluster_dir, struct t2fs_record entrada);
 
 //}
 
-int FindFreeCluster();
-//{
-  //  struct t2fs_superbloco superbloco  = ReadSuperbloco();
+int FindFreeCluster()// nao testado
+{
+    struct t2fs_superbloco superbloco  = ReadSuperbloco();
+    DWORD fat_inicio = superbloco.pFATSectorStart;
+    BYTE* buffer = malloc(SECTOR_SIZE);
+    read_sector(fat_inicio, buffer);
+    DWORD pos_atual = 0;
+    DWORD clusterIndex = 0;
+    while(1)
+    {
+        if(pos_atual >= 16) //fim do setor
+        {
+            read_sector(fat_inicio+(clusterIndex/64), buffer);
+            pos_atual = 0;
+        }
+        DWORD cluster = buffer[pos_atual] + buffer[pos_atual+1]*16*16 + buffer[pos_atual+2]*16*16*16*16 + buffer[pos_atual+3]*16*16*16*16*16*16;
+        if(cluster == 0) break; 
+        pos_atual += 4;
+        clusterIndex++;
+    }
+    free(buffer);
+    
+    return clusterIndex;
+    
     
 
-//}
+}
 void DividePathAndFile(char *pathname,char *path, char *name)
 {
    int i = 0;
