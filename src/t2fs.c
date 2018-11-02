@@ -2,22 +2,23 @@
 #include "../include/aux.h"
 
 
-struct openDir {
+struct DirsOpen {
     
     DIR2 handle;
-    DWORD firstSector;
-    DWORD cluster;
+    DWORD first_cluster;
     int CE;
 
 };
 
-struct openDir DirsHandle[10];
+struct DirsOpen DirsHandle[10];
+int handDirCont = 0;
 
 int main(int argc, char *argv[]){
 
     char* nome = malloc(51);
-    nome = "/file1.txt\0";
-    printf("%X\n", FindFile(nome));
+    nome = "/dir1/file1.txt\0";
+    int handle = opendir2(nome);
+    printf("%X\n", DirsHandle[handle].first_cluster);
     return 0;
 }
 
@@ -67,23 +68,33 @@ int chdir2 (char *pathname);
 int getcwd2 (char *pathname, int size);
 
 
-DIR2 opendir2 (char *pathname);
-
+DIR2 opendir2 (char *pathname)
+{
+    DWORD file_cluster = FindFile(pathname);
+    if(file_cluster == -1) return -1; //ERROR
+    
+    DirsHandle[handDirCont] = (struct DirsOpen){.handle = handDirCont,.first_cluster = file_cluster, .CE = 0}; 
+    
+    
+    return handDirCont++;
+    
+}
 
 
 int readdir2 (DIR2 handle, DIRENT2 *dentry)
 {
      BYTE* buffer2 = malloc(SECTOR_SIZE);
      
+     DWORD firstSector = SetorLogico_ClusterDados(DirsHandle[handle].first_cluster); 
      //Get dir size
-     if(read_sector(DirsHandle[handle].firstSector ,buffer2)) {free(buffer2);return -1;} //ERROR
+     if(read_sector(firstSector ,buffer2)) {free(buffer2);return -1;} //ERROR
      
      DWORD file_size = buffer2[52] + buffer2[53]*16*16 + buffer2[54]*16*16*16*16 + buffer2[55]*16*16*16*16*16*16;
      
      if(file_size/64 <= DirsHandle[handle].CE) {free(buffer2);return -2;} //END OF FILE
      
-    DWORD sector_entrada = DirsHandle[handle].firstSector + DirsHandle[handle].CE/4;    
-    DWORD pos_atual = (DirsHandle[handle].CE - 4*(sector_entrada - DirsHandle[handle].firstSector))*64; 
+    DWORD sector_entrada = firstSector + DirsHandle[handle].CE/4;    
+    DWORD pos_atual = (DirsHandle[handle].CE - 4*(sector_entrada - firstSector))*64; 
     
     if(read_sector(sector_entrada, buffer2)) {free(buffer2);return -1;} //ERROR
     int i;

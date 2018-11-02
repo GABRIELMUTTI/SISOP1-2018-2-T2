@@ -6,7 +6,7 @@
 
 
 
-//TRaduz de cluster para seto
+//TRaduz de cluster para setor
 DWORD SetorLogico_ClusterDados(DWORD cluster);
 
 //devolve o proximo cluster apontado na FAT

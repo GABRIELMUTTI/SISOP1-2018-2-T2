@@ -43,7 +43,7 @@ int SearchEntradas(DWORD cluster,char name[51])
      
      BYTE* buffer2 = malloc(SECTOR_SIZE);
      //Get dir size
-     if(read_sector(sector_first ,buffer2)) {free(buffer2);return -2;} //ERROR
+     if(read_sector(sector_first ,buffer2)) {free(buffer2);return -1;} //ERROR
      
      DWORD file_size = buffer2[52] + buffer2[53]*16*16 + buffer2[54]*16*16*16*16 + buffer2[55]*16*16*16*16*16*16;
      free(buffer2);
@@ -63,7 +63,7 @@ int SearchEntradas(DWORD cluster,char name[51])
                 sector_first = SetorLogico_ClusterDados(cluster);
                 j = 0;
             }
-        if(ReadEntrada(sector_first, j, entrada))return -2;        
+        if(ReadEntrada(sector_first, j, entrada))return -1;        
          j++; 
          i++; 
     }
