@@ -16,7 +16,7 @@ struct openDir DirsHandle[10];
 int main(int argc, char *argv[]){
 
     char* nome = malloc(51);
-    nome = "/dir1/file1.txt\0";
+    nome = "/file1.txt\0";
     printf("%X\n", FindFile(nome));
     return 0;
 }

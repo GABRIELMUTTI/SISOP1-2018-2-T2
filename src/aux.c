@@ -35,30 +35,41 @@ int FindFile(char *pathname)
 
 
 
-int SearchEntradas(DWORD cluster_dir,char name[51])
+int SearchEntradas(DWORD cluster,char name[51])
 {
      
      struct t2fs_superbloco superbloco  = ReadSuperbloco();
-     DWORD sector_dir = SetorLogico_ClusterDados(superbloco, cluster_dir);
+     DWORD sector_first = SetorLogico_ClusterDados(superbloco, cluster);
      
      BYTE* buffer2 = malloc(SECTOR_SIZE);
      //Get dir size
-     if(read_sector(sector_dir ,buffer2)) {free(buffer2);return -2;} //ERROR
+     if(read_sector(sector_first ,buffer2)) {free(buffer2);return -2;} //ERROR
      
      DWORD file_size = buffer2[52] + buffer2[53]*16*16 + buffer2[54]*16*16*16*16 + buffer2[55]*16*16*16*16*16*16;
      free(buffer2);
      
     struct t2fs_record* entrada = malloc(sizeof(struct t2fs_record));
-    if(ReadEntrada(sector_dir, 2, entrada))return -1;
+    if(ReadEntrada(sector_first, 2, entrada))return -1;
 
     int j = 3;
+    int i = 3;
     
-    while(strcmp(name,entrada->name)!=0 && file_size/64 > j)
+    while(strcmp(name,entrada->name)!=0 && file_size/64 > i)
     {
-        if(ReadEntrada(sector_dir, j, entrada))return -2;        
-         j++;  
+        if(j>=16)  //acabou o bloco
+            {
+                cluster = NextCluster(superbloco, cluster);
+                if (cluster == -1)return -1;// END OF FILE;
+                sector_first = SetorLogico_ClusterDados(superbloco, cluster);
+                j = 0;
+            }
+        if(ReadEntrada(sector_first, j, entrada))return -2;        
+         j++; 
+         i++; 
     }
-    if(file_size/64 <= j)return -1;// END OF FILE
+    if(file_size/64 <= i) return -1; //END OF FILE
+    
+    
     
     return entrada->firstCluster;
 

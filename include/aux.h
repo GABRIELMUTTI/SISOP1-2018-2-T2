@@ -16,7 +16,7 @@ DWORD NextCluster(struct t2fs_superbloco superbloco, DWORD cluster_atual);
 struct t2fs_superbloco ReadSuperbloco();
 
 //recebe sector inicial de um dir, le a entrada n, guarda em entrada.
-int ReadEntrada(DWORD sector_dir, int n_entrada, struct t2fs_record *entrada );
+int ReadEntrada(DWORD sector_first, int n_entrada, struct t2fs_record *entrada );
 
 //recebe cluster inicial de um dir e um nome, devolve o cluster do arquivo nome
 int SearchEntradas(DWORD cluster_dir,char name[51]);
