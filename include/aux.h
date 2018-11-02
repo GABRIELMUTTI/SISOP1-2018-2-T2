@@ -7,10 +7,10 @@
 
 
 //TRaduz de cluster para seto
-DWORD SetorLogico_ClusterDados(struct t2fs_superbloco superbloco, DWORD cluster);
+DWORD SetorLogico_ClusterDados(DWORD cluster);
 
 //devolve o proximo cluster apontado na FAT
-DWORD NextCluster(struct t2fs_superbloco superbloco, DWORD cluster_atual);
+DWORD NextCluster(DWORD cluster_atual);
 
 //Devolve o superbloco
 struct t2fs_superbloco ReadSuperbloco();

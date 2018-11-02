@@ -38,8 +38,8 @@ int FindFile(char *pathname)
 int SearchEntradas(DWORD cluster,char name[51])
 {
      
-     struct t2fs_superbloco superbloco  = ReadSuperbloco();
-     DWORD sector_first = SetorLogico_ClusterDados(superbloco, cluster);
+     
+     DWORD sector_first = SetorLogico_ClusterDados(cluster);
      
      BYTE* buffer2 = malloc(SECTOR_SIZE);
      //Get dir size
@@ -58,9 +58,9 @@ int SearchEntradas(DWORD cluster,char name[51])
     {
         if(j>=16)  //acabou o bloco
             {
-                cluster = NextCluster(superbloco, cluster);
+                cluster = NextCluster(cluster);
                 if (cluster == -1)return -1;// END OF FILE;
-                sector_first = SetorLogico_ClusterDados(superbloco, cluster);
+                sector_first = SetorLogico_ClusterDados(cluster);
                 j = 0;
             }
         if(ReadEntrada(sector_first, j, entrada))return -2;        
@@ -125,15 +125,16 @@ struct t2fs_superbloco ReadSuperbloco()
      
 }
 
-DWORD SetorLogico_ClusterDados(struct t2fs_superbloco superbloco, DWORD cluster)
+DWORD SetorLogico_ClusterDados(DWORD cluster)
 {
+    struct t2fs_superbloco superbloco  = ReadSuperbloco();
     DWORD end = (superbloco.DataSectorStart) + (cluster * superbloco.SectorsPerCluster);
     return end;
 }
 
 
 
-DWORD NextCluster(struct t2fs_superbloco superbloco, DWORD cluster_atual)
+DWORD NextCluster(DWORD cluster_atual)
 {
     DWORD sector_cluster = cluster_atual/64 + 1;
     BYTE* buffer = malloc(SECTOR_SIZE);
