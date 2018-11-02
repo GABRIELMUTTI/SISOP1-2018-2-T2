@@ -15,6 +15,9 @@ struct openDir DirsHandle[10];
 
 int main(int argc, char *argv[]){
 
+    char* nome = malloc(51);
+    nome = "/dir1/file1.txt\0";
+    printf("%X\n", FindFile(nome));
     return 0;
 }
 
@@ -65,6 +68,7 @@ int getcwd2 (char *pathname, int size);
 
 
 DIR2 opendir2 (char *pathname);
+
 
 
 int readdir2 (DIR2 handle, DIRENT2 *dentry)

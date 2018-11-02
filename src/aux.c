@@ -2,58 +2,93 @@
 
 
 
-/*
-
-DWORD LocateDir(char* pathname)
+int FindFile(char *pathname)
 {
     struct t2fs_superbloco superbloco  = ReadSuperbloco();
-    DWORD cluster;
-    char name[51]
+    int cluster;
+    char name[51];
     if(pathname[0] == '/')
         cluster = superbloco.RootDirCluster;
-    int i=1;
+    int i = 1;
     int j = 0;
-    
-    while(pathname[i] != '\0' && pathname[i] != '/')
+    while(1)
     {
-     
-        name[j] = pathname[i];
-        i++;
-        j++
+        while(pathname[i] != '\0' && pathname[i] != '/')
+        { 
+            name[j] = pathname[i];
+            i++;
+            j++;
+        }
+        
+        name[j] = '\0';
+        cluster = SearchEntradas(cluster, name);   
+        if(cluster < 0) return -1;
+        if(pathname[i] == '\0')
+            return cluster;
+            
+      i++;
+      j=0;
     }
-    name[j+1] = '\0';
-    
     
 
 }
 
-*//*
-struct t2fs_record ReadEntrada(DWORD sector_dir, int n_entrada)
+
+
+int SearchEntradas(DWORD cluster_dir,char name[51])
 {
- 
-    DWORD sector_entrada = sector_dir + n_entrada/4;
-  
-    BYTE* buffer2 = malloc(SECTOR_SIZE);
-    read_sector(sector_entrada,buffer2);
+     
+     struct t2fs_superbloco superbloco  = ReadSuperbloco();
+     DWORD sector_dir = SetorLogico_ClusterDados(superbloco, cluster_dir);
+     
+     BYTE* buffer2 = malloc(SECTOR_SIZE);
+     //Get dir size
+     if(read_sector(sector_dir ,buffer2)) {free(buffer2);return -2;} //ERROR
+     
+     DWORD file_size = buffer2[52] + buffer2[53]*16*16 + buffer2[54]*16*16*16*16 + buffer2[55]*16*16*16*16*16*16;
+     free(buffer2);
+     
+    struct t2fs_record* entrada = malloc(sizeof(struct t2fs_record));
+    if(ReadEntrada(sector_dir, 2, entrada))return -1;
+
+    int j = 3;
     
-    DWORD pos_atual = (n_entrada - 4*(sector_entrada-sector_dir))*64; 
+    while(strcmp(name,entrada->name)!=0 && file_size/64 > j)
+    {
+        if(ReadEntrada(sector_dir, j, entrada))return -2;        
+         j++;  
+    }
+    if(file_size/64 <= j)return -1;// END OF FILE
     
-   
-    struct t2fs_record entrada;
-    if(entrada == NULL)printf("aloooooo\n");
-    entrada.TypeVal = buffer2[pos_atual];
-    int i;
-    for(i = 0;i<51;i++)
-        entrada.name[i] = buffer2[pos_atual+i+1];
-    
-    entrada.bytesFileSize = buffer2[pos_atual+52] + buffer2[pos_atual+53]*16*16 + buffer2[pos_atual+54]*16*16*16*16 + buffer2[pos_atual+55]*16*16*16*16*16*16;
-    entrada.clustersFileSize = buffer2[pos_atual+56] + buffer2[pos_atual+57]*16*16 + buffer2[pos_atual+58]*16*16*16*16 + buffer2[pos_atual+59]*16*16*16*16*16*16;
-    entrada.firstCluster = buffer2[pos_atual+60] + buffer2[pos_atual+61]*16*16 + buffer2[pos_atual+62]*16*16*16*16 + buffer2[pos_atual+62]*16*16*16*16*16*16;
-    
-    free(buffer2);
-    return entrada;
+    return entrada->firstCluster;
+
+
 }
-*/
+
+
+
+
+int ReadEntrada(DWORD sector_dir, int n_entrada, struct t2fs_record *entrada )
+{    
+       
+        DWORD sector_entrada = sector_dir + n_entrada/4;
+        BYTE* buffer2 = malloc(SECTOR_SIZE);
+        if(read_sector(sector_entrada,buffer2))return 0;
+        DWORD pos_atual = (n_entrada - 4*(sector_entrada-sector_dir))*64;
+        
+        
+        entrada->TypeVal = buffer2[pos_atual];
+        int i;
+        for(i = 0;i<51;i++)
+            entrada->name[i] = buffer2[pos_atual+i+1];
+        
+        entrada->bytesFileSize = buffer2[pos_atual+52] + buffer2[pos_atual+53]*16*16 + buffer2[pos_atual+54]*16*16*16*16 + buffer2[pos_atual+55]*16*16*16*16*16*16;
+        entrada->clustersFileSize = buffer2[pos_atual+56] + buffer2[pos_atual+57]*16*16 + buffer2[pos_atual+58]*16*16*16*16 + buffer2[pos_atual+59]*16*16*16*16*16*16;
+        entrada->firstCluster = buffer2[pos_atual+60] + buffer2[pos_atual+61]*16*16 + buffer2[pos_atual+62]*16*16*16*16 + buffer2[pos_atual+62]*16*16*16*16*16*16;
+        free(buffer2);
+        
+        return 0;
+}
 struct t2fs_superbloco ReadSuperbloco()
 {
     BYTE* buffer = malloc(SECTOR_SIZE);
