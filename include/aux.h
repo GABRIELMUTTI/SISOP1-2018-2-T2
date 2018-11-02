@@ -5,6 +5,11 @@
 #include <string.h>
 
 
+//acha um cluster vazio na FAT
+int FindFreeCluster();
+
+//recebe um pathname e divide para o path e o name
+void DividePathAndFile(char *pathname,char *path, char *name);
 
 //TRaduz de cluster para setor
 DWORD SetorLogico_ClusterDados(DWORD cluster);

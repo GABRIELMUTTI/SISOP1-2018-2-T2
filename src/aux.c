@@ -1,6 +1,48 @@
 #include "../include/aux.h"
 
 
+int WriteEntrada(DWORD cluster_dir, struct t2fs_record entrada);
+//{
+//    FindFreeCluster
+    
+
+//}
+
+int FindFreeCluster();
+//{
+  //  struct t2fs_superbloco superbloco  = ReadSuperbloco();
+    
+
+//}
+void DividePathAndFile(char *pathname,char *path, char *name)
+{
+   int i = 0;
+   int j = 0;
+   int k;
+   int n;
+   int fim = 0;
+   while(1)
+   {    
+       while(pathname[j+i] != '/' )
+       {
+            name[i] = pathname[j+i];
+            if(pathname[(j+i)] == '\0') {fim=1;break;}
+            i++;
+            
+       }
+       if(fim)break; //End path
+       name[i] = '/';
+       n=0;
+       for(k = j;k <= j+i;k++) path[k]=name[n++];
+
+       j++;
+       j += i;
+       i = 0;
+   }  
+   path[j]='\0';
+
+
+}
 
 int FindFile(char *pathname)
 {

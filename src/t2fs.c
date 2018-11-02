@@ -15,10 +15,10 @@ int handDirCont = 0;
 
 int main(int argc, char *argv[]){
 
-    char* nome = malloc(51);
-    nome = "/dir1/file1.txt\0";
-    int handle = opendir2(nome);
-    printf("%X\n", DirsHandle[handle].first_cluster);
+    //char* nome = malloc(51);
+    //nome = "/dir1/file1.txt\0";
+    
+    //printf("%X\n", mkdir2(nome));
     return 0;
 }
 
@@ -46,18 +46,29 @@ int truncate2 (FILE2 handle);
    
 int seek2 (FILE2 handle, DWORD offset);
 
-int mkdir2 (char *pathname);
-   //ler superbloco
-   //read root
-   //for dirs in pathname
-   //   search current dir for dir location
-   //   read dir
-   //   current dir = dir
-   //
+int mkdir2 (char *pathname){
+   
+   char* path = malloc(51);
+   char* name = malloc(51);
+   DividePathAndFile(pathname,path,name);
+   
+   DWORD dir_cluster = FindFile(path);
+   if(dir_cluster == -1) return -1;
+   
+   struct t2fs_record entrada = (struct t2fs_record){.TypeVal = TYPEVAL_DIRETORIO,.bytesFileSize = 1024,.clustersFileSize = 1};
+   int i;
+   for(i=0;i<51;i++)entrada.name[i] = name[i];
+   
+   
+   free(path);
+   free(name);
+   
    //ocupar entrada de diretorio
    //alocar um cluster
    //Além disso, deve‐se acrescentar no diretório recém criado 
    //entradas para os diretórios “.”  ponto) e “..” (ponto‐ponto)
+   return 0;
+   }
    
 int rmdir2 (char *pathname);
   
