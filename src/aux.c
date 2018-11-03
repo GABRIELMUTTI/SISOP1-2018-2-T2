@@ -325,7 +325,7 @@ int WriteInEmptyEntry(DWORD cluster,BYTE* entrada )
 
 
 
-int SearchEntradas(DWORD cluster,char name[51])
+struct t2fs_record* SearchEntradas(DWORD cluster,char name[51])
 {
      struct t2fs_superbloco superbloco  = ReadSuperbloco();
      float bloco = 256.0*superbloco.SectorsPerCluster/64.0;
@@ -363,7 +363,7 @@ int SearchEntradas(DWORD cluster,char name[51])
     
     
     
-    return entrada->firstCluster;
+    return entrada;
 
 
 }
