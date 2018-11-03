@@ -8,7 +8,7 @@ int WriteEntrada(DWORD cluster_dir, struct t2fs_record entrada);
 
 //}
 
-int FindFreeCluster()// nao testado
+int FindFreeCluster()
 {
     struct t2fs_superbloco superbloco  = ReadSuperbloco();
     DWORD fat_inicio = superbloco.pFATSectorStart;
@@ -18,13 +18,14 @@ int FindFreeCluster()// nao testado
     DWORD clusterIndex = 0;
     while(1)
     {
-        if(pos_atual >= 16) //fim do setor
+        if(pos_atual >= 16*4) //fim do setor
         {
             read_sector(fat_inicio+(clusterIndex/64), buffer);
             pos_atual = 0;
         }
         DWORD cluster = buffer[pos_atual] + buffer[pos_atual+1]*16*16 + buffer[pos_atual+2]*16*16*16*16 + buffer[pos_atual+3]*16*16*16*16*16*16;
-        if(cluster == 0) break; 
+        if(cluster == 0) break; //achou 
+              
         pos_atual += 4;
         clusterIndex++;
     }
