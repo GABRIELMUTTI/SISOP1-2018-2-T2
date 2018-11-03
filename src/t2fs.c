@@ -25,7 +25,7 @@ int main(int argc, char *argv[]){
     //char* nome = malloc(51);
     //nome = "/dir1/file1.txt\0";
     
-    //printf("%X\n", mkdir2(nome));
+    printf("%X\n", FindFreeCluster());
     return 0;
 }
 
