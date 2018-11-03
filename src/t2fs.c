@@ -12,6 +12,7 @@ struct DirsOpen {
 
 struct FilesOpen {
 
+    DIR2 handle;
     struct t2fs_record *file_data;
     int CP;
 };
