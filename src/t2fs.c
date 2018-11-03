@@ -18,6 +18,8 @@ struct FilesOpen {
 };
 
 struct DirsOpen DirsHandle[10];
+struct FilesOpen FilesHandle[10];
+
 int handDirCont = 0;
 
 int main(int argc, char *argv[]){
