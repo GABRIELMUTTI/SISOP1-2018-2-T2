@@ -10,6 +10,12 @@ struct DirsOpen {
 
 };
 
+struct FilesOpen {
+
+    struct t2fs_record *file_data;
+    int CP;
+};
+
 struct DirsOpen DirsHandle[10];
 int handDirCont = 0;
 
