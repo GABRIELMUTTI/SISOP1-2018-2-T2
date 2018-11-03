@@ -1,5 +1,6 @@
 #include "../include/aux.h"
 
+// linha adicionada para a issue teste
 
 int WriteEntrada(DWORD cluster_dir, struct t2fs_record entrada);
 //{
