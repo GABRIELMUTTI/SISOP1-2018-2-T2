@@ -36,6 +36,8 @@ int main(int argc, char *argv[]){
     printf("%X\n", mkdir2(nome2));
     free(nome2);
     
+    
+    
     return 0;
 }
 
@@ -82,11 +84,13 @@ int mkdir2 (char *pathname){
    for(i=0;i<51;i++)entrada[i+1] = name[i];
       free(name);
    
+   struct t2fs_superbloco superbloco  = ReadSuperbloco();
         //bytesFileSize
-   entrada[52] = 0X00;
-   entrada[53] = 0X04;
-   entrada[54] = 0X00;
-   entrada[55] = 0X00;
+   DWORD bytesFileSize = 256*superbloco.SectorsPerCluster;
+   entrada[52] = bytesFileSize;
+   entrada[53] =(bytesFileSize/16)/16;
+   entrada[54] = ((((bytesFileSize/16)/16)/16)/16);
+   entrada[55] =((((((bytesFileSize/16)/16)/16)/16)/16)/16); 
         //ClusterFileSize
    entrada[56] = 0X01;
    entrada[57] = 0X00;

@@ -130,20 +130,23 @@ int FindFile(char *pathname)
 
 int WriteInEmptyEntry(DWORD cluster,BYTE* entrada )
 {
+     struct t2fs_superbloco superbloco  = ReadSuperbloco();
+     int bloco = 256.0*superbloco.SectorsPerCluster/64.0;
      
      DWORD sector = SetorLogico_ClusterDados(cluster);
      
-     BYTE* buffer2 = malloc(SECTOR_SIZE);
+     
      //Get dir size
+     BYTE* buffer2 = malloc(SECTOR_SIZE);
      if(read_sector(sector ,buffer2)) {free(buffer2);return -1;} //ERROR
      
      DWORD file_size = buffer2[52] + buffer2[53]*16*16 + buffer2[54]*16*16*16*16 + buffer2[55]*16*16*16*16*16*16;
      
     int j = 2;
-    int i = 2;
+    int i = 2.0;
     while(buffer2[j*64+1] != '\0' && file_size/64 > i)//procura entrada vazia
     {
-        if(i/16.0 == 1.0)  //acabou o bloco
+        if(i%bloco == 0.0)  //acabou o bloco
             {
                 cluster = NextCluster(cluster);
                 if (cluster == -1)return -1;;// END OF FILE;
@@ -183,6 +186,8 @@ int WriteInEmptyEntry(DWORD cluster,BYTE* entrada )
 
 int SearchEntradas(DWORD cluster,char name[51])
 {
+     struct t2fs_superbloco superbloco  = ReadSuperbloco();
+     float bloco = 256.0*superbloco.SectorsPerCluster/64.0;
      
      
      DWORD sector_first = SetorLogico_ClusterDados(cluster);
@@ -202,7 +207,7 @@ int SearchEntradas(DWORD cluster,char name[51])
     
     while(strcmp(name,entrada->name)!=0 && file_size/64 > i)
     {
-        if(j>=16)  //acabou o bloco
+        if(j>=bloco)  //acabou o bloco
             {
                 cluster = NextCluster(cluster);
                 if (cluster == -1)return -1;// END OF FILE;
