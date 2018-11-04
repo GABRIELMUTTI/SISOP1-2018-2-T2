@@ -23,7 +23,7 @@ struct FilesOpen FilesHandle[10];
 int handDirCont = 0;
 
 int main(int argc, char *argv[]){
-    
+
     return 0;
 }
 
@@ -67,8 +67,10 @@ int read2 (FILE2 handle, char *buffer, int size) {
 
     char *tmpBuffer = malloc(sizeof(char) * numSectorsToRead * SECTOR_SIZE);
 
-    DWORD currentCluster = fileRecord->firstCluster;
-    DWORD currentSector = SetorLogico_ClusterDados(currentCluster);
+    DWORD firstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
+    DWORD currentSector = (filesOpen.CP + (firstSector * SECTOR_SIZE)) / SECTOR_SIZE;
+    DWORD currentCluster = (currentSector / superbloco.SectorsPerCluster);
+    
     unsigned int sectorCounter;
     unsigned int bytesRead = 0;
     unsigned int i;
