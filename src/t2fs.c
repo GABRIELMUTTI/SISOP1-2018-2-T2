@@ -72,13 +72,16 @@ int mkdir2 (char *pathname){
    DividePathAndFile(pathname,path,name);
    
    DWORD dir_cluster = FindFile(path);
-   if(dir_cluster == -1) {free(path);free(name);return -1;}
+   free(path);
+   if(dir_cluster == -1) {free(name);return -1;}
    
    //define a entrada do novo dir
    BYTE* entrada = malloc(64);
    entrada[0] = TYPEVAL_DIRETORIO;
    int i;
    for(i=0;i<51;i++)entrada[i+1] = name[i];
+      free(name);
+   
         //bytesFileSize
    entrada[52] = 0X00;
    entrada[53] = 0X04;
@@ -97,19 +100,13 @@ int mkdir2 (char *pathname){
    //escreve a entrada no dir pai
    if(WriteInEmptyEntry(dir_cluster,entrada) == -1){free(name);free(path);free(entrada);return -1;}
    //inicia o dir com '.' e '..'
-   StartNewDir(clusterfree, entrada, dir_cluster);
-   
-   free(name);
-    free(path);
-    free(entrada);
-    
-    
-    
+   if(StartNewDir(clusterfree, entrada, dir_cluster) == -1) {free(entrada);return -1;}
    
 
+    free(entrada);
 
    return 0;
-   }
+}
    
 int rmdir2 (char *pathname);
   
