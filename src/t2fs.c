@@ -23,11 +23,7 @@ struct FilesOpen FilesHandle[10];
 int handDirCont = 0;
 
 int main(int argc, char *argv[]){
-
-    //char* nome = malloc(51);
-    //nome = "/dir1/file1.txt\0";
     
-    //printf("%X\n", mkdir2(nome));
     return 0;
 }
 
@@ -46,7 +42,71 @@ FILE2 open2 (char *filename);
 int close2 (FILE2 handle);
 
 
-int read2 (FILE2 handle, char *buffer, int size);
+int read2 (FILE2 handle, char *buffer, int size) {
+    
+    struct FilesOpen filesOpen = FilesHandle[handle];
+    struct t2fs_superbloco superbloco = ReadSuperbloco();
+    struct t2fs_record *fileRecord = filesOpen.file_data;
+
+    unsigned int currentPointSectorOffset = filesOpen.CP % SECTOR_SIZE;
+    unsigned int bufferBeginning = 0;
+    unsigned int bufferEnding = SECTOR_SIZE;
+
+    // Calcula o ceiling de size / SECTOR_SIZE.
+    unsigned int numSectorsToRead = (size / SECTOR_SIZE) + ((size % SECTOR_SIZE) != 0);
+    
+    if (currentPointSectorOffset != 0) {	
+	bufferBeginning = currentPointSectorOffset;
+    }
+
+    unsigned int sizeWithoutCurrentPoint = currentPointSectorOffset + size;
+    if (sizeWithoutCurrentPoint % SECTOR_SIZE != 0) {
+	bufferEnding = sizeWithoutCurrentPoint;
+    }
+
+
+    char *tmpBuffer = malloc(sizeof(char) * numSectorsToRead * SECTOR_SIZE);
+
+    DWORD currentCluster = fileRecord->firstCluster;
+    DWORD currentSector = SetorLogico_ClusterDados(currentCluster);
+    unsigned int sectorCounter;
+    unsigned int bytesRead = 0;
+    unsigned int i;
+    
+    for (i = 0; i < numSectorsToRead; i++)
+    {
+	int status = read_sector(currentSector, tmpBuffer);
+
+	if (status != 0) {
+	    return -1;
+	}
+
+	bytesRead = bytesRead + SECTOR_SIZE;
+
+	// Vai pro próximo cluster.
+	if (sectorCounter >= 3) {
+	    currentCluster = NextCluster(currentCluster);
+	    currentSector = SetorLogico_ClusterDados(currentCluster);
+	    sectorCounter = 0;
+	}
+
+	// Chegou no final do arquivo.
+	if (currentCluster == 0xFFFFFFFF) {
+	    break;
+	}
+
+	sectorCounter = sectorCounter + 1;
+    }
+
+    memcpy(buffer, (tmpBuffer + bufferBeginning), bufferEnding);
+    free(tmpBuffer);
+
+    bytesRead = bytesRead - currentPointSectorOffset - (SECTOR_SIZE - (sizeWithoutCurrentPoint % SECTOR_SIZE));
+
+    FilesHandle[handle].CP = bytesRead +  FilesHandle[handle].CP;
+    
+    return bytesRead;
+}
 
 
 int write2 (FILE2 handle, char *buffer, int size);
