@@ -23,8 +23,34 @@ struct FilesOpen FilesHandle[10];
 int handDirCont = 0;
 
 int main(int argc, char *argv[]){
+    struct t2fs_superbloco superbloco = ReadSuperbloco();
 
+    char *buffer = malloc(sizeof(char) * 55);
+
+    struct t2fs_record *fileRecord = malloc(sizeof(struct t2fs_record));
+    ReadEntrada(137, 2, fileRecord);
+
+    struct FilesOpen *filesOpen = malloc(sizeof(struct FilesOpen));
+    filesOpen->handle = 0;
+    filesOpen->file_data = fileRecord;
+    filesOpen->CP = 0;
+    
+    FilesHandle[0] = *filesOpen;
+
+  
+    int status = read2(0, buffer, 21);
+
+    
+    printf("Status: %d\nValor: %s\n", status, buffer);
+    status = read2(0, buffer, 34);
+
+    printf("WithCP:\nStatus: %d\nValor: %s\n", status, buffer);
+    
+
+    
+    
     return 0;
+
 }
 
 
@@ -71,7 +97,7 @@ int read2 (FILE2 handle, char *buffer, int size) {
     DWORD currentSector = (filesOpen.CP + (firstSector * SECTOR_SIZE)) / SECTOR_SIZE;
     DWORD currentCluster = (currentSector / superbloco.SectorsPerCluster);
     
-    unsigned int sectorCounter;
+    unsigned int sectorCounter = 0;
     unsigned int bytesRead = 0;
     unsigned int i;
     
@@ -85,8 +111,11 @@ int read2 (FILE2 handle, char *buffer, int size) {
 
 	bytesRead = bytesRead + SECTOR_SIZE;
 
+
+	sectorCounter = sectorCounter + 1;
+	
 	// Vai pro próximo cluster.
-	if (sectorCounter >= 3) {
+	if (sectorCounter >= superbloco.SectorsPerCluster) {
 	    currentCluster = NextCluster(currentCluster);
 	    currentSector = SetorLogico_ClusterDados(currentCluster);
 	    sectorCounter = 0;
@@ -97,7 +126,6 @@ int read2 (FILE2 handle, char *buffer, int size) {
 	    break;
 	}
 
-	sectorCounter = sectorCounter + 1;
     }
 
     memcpy(buffer, (tmpBuffer + bufferBeginning), bufferEnding);
