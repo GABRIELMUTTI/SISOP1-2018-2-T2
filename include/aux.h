@@ -5,10 +5,16 @@
 #include <string.h>
 
 
-//escreve uma entrada no diretório
-int WriteEntrada(DWORD cluster_dir, struct t2fs_record entrada);
+//Escreve as entradas '.' e '..' em um dir novo
+int StartNewDir(DWORD cluster, BYTE* new_dir_entry, DWORD cluster_father);
 
-//acha um cluster vazio na FAT
+
+
+//acha uma entrada vazia no cluster e escreve a entrada passada
+int WriteInEmptyEntry(DWORD cluster,BYTE* entrada);
+
+
+//acha um cluster vazio na FAT e o ocupa
 int FindFreeCluster();
 
 //recebe um pathname e divide para o path e o name

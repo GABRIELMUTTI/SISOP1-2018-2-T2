@@ -22,10 +22,20 @@ int handDirCont = 0;
 
 int main(int argc, char *argv[]){
 
-    //char* nome = malloc(51);
-    //nome = "/dir1/file1.txt\0";
+    char nomea[51] = "/dir1/dir2\0";
+    char* nome = malloc(51);
+    int i;
+    for(i = 0; i<51;i++ ) nome[i] = nomea[i];
     
-    printf("%X\n", FindFreeCluster());
+    printf("%X\n", mkdir2(nome));
+    free(nome);
+   
+    char nomeb[51] = "/dir1/dir2/ALOOOOO\0";
+    char* nome2 = malloc(51);
+    for(i = 0; i<51;i++ ) nome2[i] = nomeb[i];
+    printf("%X\n", mkdir2(nome2));
+    free(nome2);
+    
     return 0;
 }
 
@@ -55,25 +65,49 @@ int seek2 (FILE2 handle, DWORD offset);
 
 int mkdir2 (char *pathname){
    
+   if(FindFile(pathname) != -1)//nome de dir/arquivo ja existente
+        return -1;
    char* path = malloc(51);
    char* name = malloc(51);
    DividePathAndFile(pathname,path,name);
    
    DWORD dir_cluster = FindFile(path);
-   if(dir_cluster == -1) return -1;
+   if(dir_cluster == -1) {free(path);free(name);return -1;}
    
-   struct t2fs_record entrada = (struct t2fs_record){.TypeVal = TYPEVAL_DIRETORIO,.bytesFileSize = 1024,.clustersFileSize = 1};
+   //define a entrada do novo dir
+   BYTE* entrada = malloc(64);
+   entrada[0] = TYPEVAL_DIRETORIO;
    int i;
-   for(i=0;i<51;i++)entrada.name[i] = name[i];
+   for(i=0;i<51;i++)entrada[i+1] = name[i];
+        //bytesFileSize
+   entrada[52] = 0X00;
+   entrada[53] = 0X04;
+   entrada[54] = 0X00;
+   entrada[55] = 0X00;
+        //ClusterFileSize
+   entrada[56] = 0X01;
+   entrada[57] = 0X00;
+   entrada[58] = 0X00;
+   entrada[59] = 0X00;
+   DWORD clusterfree = FindFreeCluster();//entrada FAT
+   entrada[60] = clusterfree;
+   entrada[61] =(clusterfree/16)/16;
+   entrada[62] = ((((clusterfree/16)/16)/16)/16);
+   entrada[63] =((((((clusterfree/16)/16)/16)/16)/16)/16); 
+   //escreve a entrada no dir pai
+   if(WriteInEmptyEntry(dir_cluster,entrada) == -1){free(name);free(path);free(entrada);return -1;}
+   //inicia o dir com '.' e '..'
+   StartNewDir(clusterfree, entrada, dir_cluster);
    
-   
-   free(path);
    free(name);
+    free(path);
+    free(entrada);
+    
+    
+    
    
-   //ocupar entrada de diretorio
-   //alocar um cluster
-   //Além disso, deve‐se acrescentar no diretório recém criado 
-   //entradas para os diretórios “.”  ponto) e “..” (ponto‐ponto)
+
+
    return 0;
    }
    
