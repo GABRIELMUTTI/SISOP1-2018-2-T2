@@ -148,6 +148,7 @@ int read2 (FILE2 handle, char *buffer, int size) {
 
 
 
+
 int write2 (FILE2 handle, char *buffer, int size) {
     struct FilesOpen filesOpen = FilesHandle[handle];
     struct t2fs_record *fileRecord = filesOpen.file_data;
