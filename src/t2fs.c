@@ -1,6 +1,7 @@
 #include "../include/t2fs.h"
 #include "../include/aux.h"
 
+char workingDir[255] = "/alooo\0";
 
 struct DirsOpen {
     
@@ -63,7 +64,7 @@ int read2 (FILE2 handle, char *buffer, int size) {
     unsigned int sizeWithoutCurrentPoint = currentPointSectorOffset + size;
 
   
-    char *tmpBuffer = malloc(sizeof(char) * numSectorsToRead * SECTOR_SIZE);
+    BYTE *tmpBuffer = malloc(sizeof(BYTE) * numSectorsToRead * SECTOR_SIZE);
 
     DWORD firstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
     DWORD currentSector = (filesOpen.CP + (firstSector * SECTOR_SIZE)) / SECTOR_SIZE;
@@ -216,8 +217,16 @@ int rmdir2 (char *pathname)
 int chdir2 (char *pathname);
 
 
-int getcwd2 (char *pathname, int size);
+int getcwd2 (char *pathname, int size)
+{
+    int len = strlen(workingDir);
+    if(size < len) return -1;
+    
+    strcpy(pathname,workingDir);
+    return 0;
 
+
+}
 
 DIR2 opendir2 (char *pathname)
 {
