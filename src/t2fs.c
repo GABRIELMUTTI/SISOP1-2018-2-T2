@@ -22,11 +22,11 @@ int handDirCont = 0;
 
 int main(int argc, char *argv[]){
     
-    char name[51] = "/dir1/dir25\0";
+    char name[51] = "/dir24\0";
     char* namep = malloc(255);
     int i;
     for(i = 0; i < 51; i++ )namep[i] = name[i];
-    //printf("%X\n",mkdir2(namep));
+    printf("%X\n",mkdir2(namep));
 
 
     printf("%X\n",rmdir2(namep));
@@ -129,9 +129,9 @@ int rmdir2 (char *pathname)
     struct t2fs_superbloco superbloco  = ReadSuperbloco();
     int k;
     for(k = 0; k < 256;k++) buffer[k] = '\0';
-    for(k=1;k < superbloco.SectorsPerCluster;k++)
+    for(k=0;k < superbloco.SectorsPerCluster;k++)
         if(write_sector(SetorLogico_ClusterDados(cluster)+k,buffer)) {free(buffer);return -1;}
-    
+        
     //APAGA NA FAT
     DWORD sector_cluster = cluster/64 + superbloco.pFATSectorStart;
     

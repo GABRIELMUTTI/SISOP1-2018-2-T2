@@ -5,7 +5,9 @@ int EraseEntry(char* path,char* name)
      DWORD cluster = FindFile(path);
      if(cluster == -1) return -1;
 
- 
+     char nameEntry[51];
+     int x;
+     for(x = 0; x < 51; x++) nameEntry[x] = name[x];
      //procura a entrada
      struct t2fs_superbloco superbloco  = ReadSuperbloco();
      int file_size = superbloco.SectorsPerCluster*256;
@@ -16,21 +18,24 @@ int EraseEntry(char* path,char* name)
 
     int i = 2;
     int j = 2;
-    if(ReadEntrada(sector, i, entrada) == -1)return -1;
-    while(strcmp(name,entrada->name)!=0 && file_size/64 > i)
+    if(ReadEntrada(sector, i, entrada) == -1){free(entrada);return -1;}
+    while(strcmp(nameEntry,entrada->name)!=0 && file_size/64 > i)
     {
         j++;
+        if(j == 4) j = 0;
         i++;
-        if(ReadEntrada(sector, i, entrada))return -1;     
-        if(j == 3) j = 0;
+        if(ReadEntrada(sector, i, entrada)){free(entrada);return -1;}
+        
+        
     }
+    free(entrada);
     if(file_size/64 <= i) return -1; //END OF FILE
     
     //apaga a entrada
     BYTE* buffer = malloc(SECTOR_SIZE);
     if(read_sector(sector + i/4,buffer)) {free(buffer);return -1;}
     int k;
-    for(k = 0;k < 64;j++) buffer[j*64 + k] = '\0';
+    for(k = 0;k < 64;k++) buffer[j*64 + k] = '\0';
     if(write_sector(sector + i/4,buffer)) {free(buffer);return -1;}
     free(buffer);
     
@@ -331,7 +336,7 @@ int ReadEntrada(DWORD sector_dir, int n_entrada, struct t2fs_record *entrada )
         BYTE* buffer2 = malloc(SECTOR_SIZE);
         if(read_sector(sector_entrada,buffer2)){free(buffer2);return -1;}
         DWORD pos_atual = (n_entrada - 4*(sector_entrada-sector_dir))*64;
-        printf("ALOOO\n");
+      
         
         entrada->TypeVal = buffer2[pos_atual];
         int i;
