@@ -2,6 +2,8 @@
 #include "../include/aux.h"
 
 
+char workingDir[255] = "/\0";
+
 struct DirsOpen {
     
     DIR2 handle;
@@ -24,7 +26,7 @@ int handDirCont = 0;
 
 int main(int argc, char *argv[]){
 
-  
+
     return 0;
 }
 
@@ -63,7 +65,7 @@ int read2 (FILE2 handle, char *buffer, int size) {
     unsigned int sizeWithoutCurrentPoint = currentPointSectorOffset + size;
 
   
-    char *tmpBuffer = malloc(sizeof(char) * numSectorsToRead * SECTOR_SIZE);
+    BYTE *tmpBuffer = malloc(sizeof(BYTE) * numSectorsToRead * SECTOR_SIZE);
 
     DWORD firstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
     DWORD currentSector = (filesOpen.CP + (firstSector * SECTOR_SIZE)) / SECTOR_SIZE;
@@ -174,8 +176,13 @@ int mkdir2 (char *pathname){
 int rmdir2 (char *pathname);
   
 
-int chdir2 (char *pathname);
+int chdir2 (char *pathname)
+{
+    strcpy(workingDir,pathname);
+    
+    return 0;
 
+}
 
 int getcwd2 (char *pathname, int size);
 
