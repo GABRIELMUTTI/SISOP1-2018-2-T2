@@ -1,7 +1,8 @@
 #include "../include/t2fs.h"
 #include "../include/aux.h"
 
-char workingDir[255] = "/alooo\0";
+
+extern char workingDir[255];
 
 struct DirsOpen {
     
