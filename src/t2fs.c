@@ -18,14 +18,10 @@ struct FilesOpen {
 };
 
 struct DirsOpen DirsHandle[10];
+struct FilesOpen FilesHandle[10];
 int handDirCont = 0;
 
 int main(int argc, char *argv[]){
-
-    //char* nome = malloc(51);
-    //nome = "/dir1/file1.txt\0";
-    
-    //printf("%X\n", mkdir2(nome));
     return 0;
 }
 
@@ -47,7 +43,90 @@ int close2 (FILE2 handle);
 int read2 (FILE2 handle, char *buffer, int size);
 
 
-int write2 (FILE2 handle, char *buffer, int size);
+
+int write2 (FILE2 handle, char *buffer, int size) {
+    struct FilesOpen filesOpen = FilesHandle[handle];
+    struct t2fs_record *fileRecord = filesOpen.file_data;
+    struct t2fs_superbloco superblock = ReadSuperbloco();
+
+    unsigned int numSectorsToWrite = (size / SECTOR_SIZE) + (size % SECTOR_SIZE != 0);
+    DWORD fileFirstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
+    
+    char *firstSectorBuffer = malloc(sizeof(char) * SECTOR_SIZE);
+    char *lastSectorBuffer = malloc(sizeof(char) * SECTOR_SIZE);
+
+    DWORD currentPointerSector = ((fileFirstSector * SECTOR_SIZE) + filesOpen.CP) / SECTOR_SIZE;
+    
+    unsigned int bytesWritten = 0;
+
+    DWORD currentSector = currentPointerSector;
+    DWORD currentCluster = currentPointerSector / superblock.SectorsPerCluster;
+    unsigned int sectorCounter = 0;
+    int status;
+    unsigned int i;
+
+    // Escreve os setores do "meio".
+    for (i = 1; i < numSectorsToWrite - 1; i++) {
+	status = write_sector(currentSector, buffer + (i * SECTOR_SIZE));
+
+	if (status != 0) {
+	    return -1;
+	}
+	
+	sectorCounter = sectorCounter + 1;
+	bytesWritten = bytesWritten + SECTOR_SIZE;
+
+	if (sectorCounter >= superblock.SectorsPerCluster) {
+	    currentCluster = NextCluster(currentCluster);
+	    sectorCounter = 0;
+	}
+
+	if (currentCluster = 0xFFFFFFFF) {
+	    break;
+	}
+    }
+
+    // Lê e depois escreve se o current pointer não estiver no começo de um setor.
+    unsigned int sizeWithoutCurrentPointer = (size + filesOpen.CP) % SECTOR_SIZE;
+    if (filesOpen.CP % SECTOR_SIZE != 0) {
+	if (read_sector(currentPointerSector, firstSectorBuffer) != 0) {
+	    return -1;
+	}
+
+	memcpy(firstSectorBuffer, buffer + filesOpen.CP, SECTOR_SIZE - (filesOpen.CP % SECTOR_SIZE));
+
+	if (write_sector(currentPointerSector, firstSectorBuffer) != 0) {
+	    return -1;
+	}
+
+	bytesWritten = bytesWritten + SECTOR_SIZE - (filesOpen.CP % SECTOR_SIZE);
+    }
+
+    
+    // Lê e depois escreve se o final da escrita não completar um setor.
+    if (sizeWithoutCurrentPointer % SECTOR_SIZE != 0 && numSectorsToWrite >= 1) {
+	status = read_sector(currentSector, lastSectorBuffer);
+
+	if (status != 0) {
+	    return -1;
+	}
+
+	memcpy(lastSectorBuffer, buffer, sizeWithoutCurrentPointer);
+
+	if (write_sector(currentSector, lastSectorBuffer) != 0) {
+	    return -1;
+	}
+
+	bytesWritten = bytesWritten + (sizeWithoutCurrentPointer % SECTOR_SIZE);
+    }
+
+    free(firstSectorBuffer);
+    free(lastSectorBuffer);
+
+    FilesHandle[handle].CP = filesOpen.CP + bytesWritten;
+    
+    return bytesWritten;
+}
     
 int truncate2 (FILE2 handle);
    
