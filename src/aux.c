@@ -1,6 +1,100 @@
 #include "../include/aux.h"
 
+
 char workingDir[255] = "/dir1\0";
+
+int EraseEntry(char* path,char* name)
+{
+     DWORD cluster = FindFile(path);
+     if(cluster == -1) return -1;
+
+     char nameEntry[51];
+     int x;
+     for(x = 0; x < 51; x++) nameEntry[x] = name[x];
+     //procura a entrada
+     struct t2fs_superbloco superbloco  = ReadSuperbloco();
+     int file_size = superbloco.SectorsPerCluster*256;
+     DWORD sector = SetorLogico_ClusterDados(cluster);
+       
+    struct t2fs_record* entrada = malloc(sizeof(struct t2fs_record));
+
+
+    int i = 2;
+    int j = 2;
+    if(ReadEntrada(sector, i, entrada) == -1){free(entrada);return -1;}
+    while(strcmp(nameEntry,entrada->name)!=0 && file_size/64 > i)
+    {
+        j++;
+        if(j == 4) j = 0;
+        i++;
+        if(ReadEntrada(sector, i, entrada)){free(entrada);return -1;}
+        
+        
+    }
+    free(entrada);
+    if(file_size/64 <= i) return -1; //END OF FILE
+    
+    //apaga a entrada
+    BYTE* buffer = malloc(SECTOR_SIZE);
+    if(read_sector(sector + i/4,buffer)) {free(buffer);return -1;}
+    int k;
+    for(k = 0;k < 64;k++) buffer[j*64 + k] = '\0';
+    if(write_sector(sector + i/4,buffer)) {free(buffer);return -1;}
+    free(buffer);
+    
+    return 0;
+
+
+}
+
+
+int CheckIfDirAndEmpty(DWORD cluster)
+{     
+     DWORD sector = SetorLogico_ClusterDados(cluster);
+     
+     
+     //Get dir size
+     BYTE* buffer2 = malloc(SECTOR_SIZE);
+     if(read_sector(sector ,buffer2)) {free(buffer2);return 0;} //ERROR
+     if(buffer2[0] != TYPEVAL_DIRETORIO || buffer2[1] != '.')
+        {free(buffer2);return 0;}//NOT A DIR
+     DWORD file_size = buffer2[52] + buffer2[53]*16*16 + buffer2[54]*16*16*16*16 + buffer2[55]*16*16*16*16*16*16;
+     
+    int j = 2;
+    int i = 2;
+    //procura entrada nao vazia
+    while(file_size/64 > i)
+    {
+        
+        if(buffer2[j*64] != TYPEVAL_INVALIDO)
+        {
+            free(buffer2);
+            return 0;//diretorio nao vazio
+        }
+        
+        if(j == 3) // acabou setor
+         {
+            sector++;
+            if(read_sector(sector ,buffer2)) {free(buffer2);return 0;} //ERROR
+            j=-1;
+         }        
+         j++; 
+         i++; 
+    }
+    
+    free(buffer2);
+    return 1; //END OF FILE, diretorio vazio
+
+
+
+
+}
+
+
+
+
+
+
 
 
 int StartNewDir(DWORD cluster, BYTE* new_dir_entry, DWORD cluster_father)
@@ -25,7 +119,15 @@ int StartNewDir(DWORD cluster, BYTE* new_dir_entry, DWORD cluster_father)
     for(i=3;i<52;i++) buffer[fatherBegin+i] = '\0';
     for(i=52;i<64;i++) buffer[fatherBegin+i] = buffer2[i];
     free(buffer2);
+    for(i=fatherBegin+64;i<256;i++) buffer[i] = '\0';
     if(write_sector(newDirSector,buffer)) {free(buffer);return -1;}
+    
+    //erase any garbage in the dir
+    struct t2fs_superbloco superbloco  = ReadSuperbloco();
+    int k;
+    for(k = 0; k < 256;k++) buffer[k] = '\0';
+    for(k=1;k < superbloco.SectorsPerCluster;k++)
+        if(write_sector(newDirSector+k,buffer)) {free(buffer);return -1;}
     
     free(buffer);
     
@@ -181,8 +283,8 @@ int WriteInEmptyEntry(DWORD cluster,BYTE* entrada )
      DWORD file_size = buffer2[52] + buffer2[53]*16*16 + buffer2[54]*16*16*16*16 + buffer2[55]*16*16*16*16*16*16;
      
     int j = 2;
-    int i = 2.0;
-    while(buffer2[j*64+1] != '\0' && file_size/64 > i)//procura entrada vazia
+    int i = 2;
+    while(buffer2[j*64] != TYPEVAL_INVALIDO && file_size/64 > i)//procura entrada vazia
     {
         if(i%bloco == 0.0)  //acabou o bloco
             {
@@ -273,9 +375,9 @@ int ReadEntrada(DWORD sector_dir, int n_entrada, struct t2fs_record *entrada )
        
         DWORD sector_entrada = sector_dir + n_entrada/4;
         BYTE* buffer2 = malloc(SECTOR_SIZE);
-        if(read_sector(sector_entrada,buffer2))return 0;
+        if(read_sector(sector_entrada,buffer2)){free(buffer2);return -1;}
         DWORD pos_atual = (n_entrada - 4*(sector_entrada-sector_dir))*64;
-        
+      
         
         entrada->TypeVal = buffer2[pos_atual];
         int i;
@@ -325,7 +427,8 @@ DWORD SetorLogico_ClusterDados(DWORD cluster)
 
 DWORD NextCluster(DWORD cluster_atual)
 {
-    DWORD sector_cluster = cluster_atual/64 + 1;
+    struct t2fs_superbloco superbloco  = ReadSuperbloco();
+    DWORD sector_cluster = cluster_atual/64 + superbloco.pFATSectorStart;
     BYTE* buffer = malloc(SECTOR_SIZE);
     read_sector(sector_cluster,buffer);
     DWORD pos_atual = (cluster_atual - 64*(sector_cluster-1))*4;
