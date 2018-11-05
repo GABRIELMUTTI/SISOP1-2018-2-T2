@@ -123,9 +123,9 @@ int FindFile(char *pathname)
           }
           else //relativo current
          {  
-                if(pathname[0] == '.') // ex: ./dir
+                if(pathname[0] == '.') // relativo ex: ./dir
                     i++;
-                else                   // ex:  dir
+                else                   // relativo ex:  dir
                     i = 0;
                 char* path = malloc(255);
                 strcpy(path,workingDir);
@@ -153,6 +153,8 @@ int FindFile(char *pathname)
         }
         
         name[j] = '\0';
+        if(name[0] == '\0')  //caso o path terminar em /   ex:/dir/
+            return cluster;
         cluster = SearchEntradas(cluster, name); 
          
         if(cluster < 0) return -1;
