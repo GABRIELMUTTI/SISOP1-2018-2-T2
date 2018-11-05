@@ -5,6 +5,13 @@
 #include <string.h>
 
 
+//apaga a entrada de name no dir path
+int EraseEntry(char* path,char* name);
+
+
+//devolve 1 se vazio e dir, 0 se nao
+int CheckIfDirAndEmpty(DWORD cluster);
+
 //Escreve as entradas '.' e '..' em um dir novo
 int StartNewDir(DWORD cluster, BYTE* new_dir_entry, DWORD cluster_father);
 

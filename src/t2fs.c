@@ -23,8 +23,8 @@ struct FilesOpen FilesHandle[10];
 int handDirCont = 0;
 
 int main(int argc, char *argv[]){
+    
 
-  
     return 0;
 }
 
@@ -128,7 +128,7 @@ int mkdir2 (char *pathname){
    
    if(FindFile(pathname) != -1)//nome de dir/arquivo ja existente
         return -1;
-   char* path = malloc(51);
+   char* path = malloc(255);
    char* name = malloc(51);
    DividePathAndFile(pathname,path,name);
    
@@ -159,7 +159,8 @@ int mkdir2 (char *pathname){
    entrada[60] = clusterfree;
    entrada[61] =(clusterfree/16)/16;
    entrada[62] = ((((clusterfree/16)/16)/16)/16);
-   entrada[63] =((((((clusterfree/16)/16)/16)/16)/16)/16); 
+   entrada[63] =((((((clusterfree/16)/16)/16)/16)/16)/16);
+    
    //escreve a entrada no dir pai
    if(WriteInEmptyEntry(dir_cluster,entrada) == -1){free(name);free(path);free(entrada);return -1;}
    //inicia o dir com '.' e '..'
@@ -171,7 +172,45 @@ int mkdir2 (char *pathname){
    return 0;
 }
    
-int rmdir2 (char *pathname);
+int rmdir2 (char *pathname)
+{
+    DWORD cluster = FindFile(pathname);
+    if(cluster == -1) return -1;//ERROR LOOKING FOR
+
+    if(!CheckIfDirAndEmpty(cluster)) return -1;// not empty or not a dir
+    
+    //APAGA ENTRADA
+    char* path = malloc(255);
+    char* name = malloc(51);
+    DividePathAndFile(pathname, path, name);  
+    EraseEntry(path,name);
+    free(path);
+    free(name);
+    BYTE* buffer = malloc(SECTOR_SIZE);
+    
+    //APAGA DIRETORIO
+    struct t2fs_superbloco superbloco  = ReadSuperbloco();
+    int k;
+    for(k = 0; k < 256;k++) buffer[k] = '\0';
+    for(k=0;k < superbloco.SectorsPerCluster;k++)
+        if(write_sector(SetorLogico_ClusterDados(cluster)+k,buffer)) {free(buffer);return -1;}
+        
+    //APAGA NA FAT
+    DWORD sector_cluster = cluster/64 + superbloco.pFATSectorStart;
+    
+    if(read_sector(sector_cluster,buffer)){free(buffer);return -1;}
+    DWORD pos_atual = (cluster - 64*(sector_cluster-1))*4;
+    buffer[pos_atual] = 0;
+    buffer[pos_atual+1] = 0;
+    buffer[pos_atual+2] = 0;
+    buffer[pos_atual+3] = 0;
+    if(write_sector(sector_cluster,buffer)){free(buffer);return -1;}
+    
+    free(buffer);
+    return 0;
+
+
+}
   
 
 int chdir2 (char *pathname);
