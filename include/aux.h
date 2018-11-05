@@ -5,6 +5,7 @@
 #include <string.h>
 
 
+
 //Escreve as entradas '.' e '..' em um dir novo
 int StartNewDir(DWORD cluster, BYTE* new_dir_entry, DWORD cluster_father);
 

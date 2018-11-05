@@ -1,6 +1,7 @@
 #include "../include/t2fs.h"
 #include "../include/aux.h"
 
+extern char workingDir[255];
 
 struct DirsOpen {
     
@@ -23,6 +24,7 @@ struct FilesOpen FilesHandle[10];
 int handDirCont = 0;
 
 int main(int argc, char *argv[]){
+    
 
   
     return 0;
@@ -63,7 +65,7 @@ int read2 (FILE2 handle, char *buffer, int size) {
     unsigned int sizeWithoutCurrentPoint = currentPointSectorOffset + size;
 
   
-    char *tmpBuffer = malloc(sizeof(char) * numSectorsToRead * SECTOR_SIZE);
+    BYTE *tmpBuffer = malloc(sizeof(BYTE) * numSectorsToRead * SECTOR_SIZE);
 
     DWORD firstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
     DWORD currentSector = (filesOpen.CP + (firstSector * SECTOR_SIZE)) / SECTOR_SIZE;
@@ -128,7 +130,7 @@ int mkdir2 (char *pathname){
    
    if(FindFile(pathname) != -1)//nome de dir/arquivo ja existente
         return -1;
-   char* path = malloc(51);
+   char* path = malloc(255);
    char* name = malloc(51);
    DividePathAndFile(pathname,path,name);
    

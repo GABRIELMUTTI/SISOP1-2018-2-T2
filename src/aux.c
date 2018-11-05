@@ -1,5 +1,6 @@
 #include "../include/aux.h"
 
+char workingDir[255] = "/dir1\0";
 
 
 int StartNewDir(DWORD cluster, BYTE* new_dir_entry, DWORD cluster_father)
@@ -101,12 +102,46 @@ int FindFile(char *pathname)
     struct t2fs_superbloco superbloco  = ReadSuperbloco();
     int cluster;
     char name[51];
-    if(pathname[0] == '/')
-        cluster = superbloco.RootDirCluster;
     int i = 1;
+    
+    if(pathname[0] == '/')//absoluto
+        cluster = superbloco.RootDirCluster;
+    else 
+    {
+          if(pathname[1] == '.')//relativo pai 
+          {
+                char* path1 = malloc(255);
+                strcpy(path1,workingDir);
+                char* path2 = malloc(255);
+                char* name2 = malloc(51);
+                DividePathAndFile(path1,path2,name2);
+                free(path1);
+                free(name2);
+                cluster = FindFile(path2);
+                free(path2);
+                i+=2;           
+          }
+          else //relativo current
+         {  
+                if(pathname[0] == '.') // ex: ./dir
+                    i++;
+                else                   // ex:  dir
+                    i = 0;
+                char* path = malloc(255);
+                strcpy(path,workingDir);
+                cluster = FindFile(path);
+                free(path);
+                
+         }
+    }
+   
+            
+    
+    
     int j = 0;
     while(1)
     {
+       
         if(pathname[i] == '\0')
             return cluster;
             
@@ -118,10 +153,11 @@ int FindFile(char *pathname)
         }
         
         name[j] = '\0';
-        cluster = SearchEntradas(cluster, name);   
+        cluster = SearchEntradas(cluster, name); 
+         
         if(cluster < 0) return -1;
 
-      i++;
+      
       j=0;
     }
     
