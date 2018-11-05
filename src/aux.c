@@ -32,7 +32,7 @@ int StartNewDir(DWORD cluster, BYTE* new_dir_entry, DWORD cluster_father)
 }
 
 
-int FindFreeCluster()
+int OccupyFreeCluster()
 {
     struct t2fs_superbloco superbloco  = ReadSuperbloco();
     DWORD sector = superbloco.pFATSectorStart;

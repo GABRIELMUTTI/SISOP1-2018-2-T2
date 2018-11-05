@@ -15,7 +15,7 @@ int WriteInEmptyEntry(DWORD cluster,BYTE* entrada);
 
 
 //acha um cluster vazio na FAT e o ocupa
-int FindFreeCluster();
+int OccupyFreeCluster();
 
 //recebe um pathname e divide para o path e o name
 void DividePathAndFile(char *pathname,char *path, char *name);

@@ -22,20 +22,7 @@ int handDirCont = 0;
 
 int main(int argc, char *argv[]){
 
-    char nomea[51] = "/dir1/dir2\0";
-    char* nome = malloc(51);
-    int i;
-    for(i = 0; i<51;i++ ) nome[i] = nomea[i];
-    
-    printf("%X\n", mkdir2(nome));
-    free(nome);
-   
-    char nomeb[51] = "/dir1/dir2/ALOOOOO\0";
-    char* nome2 = malloc(51);
-    for(i = 0; i<51;i++ ) nome2[i] = nomeb[i];
-    printf("%X\n", mkdir2(nome2));
-    free(nome2);
-    
+
     
     
     return 0;
@@ -96,7 +83,7 @@ int mkdir2 (char *pathname){
    entrada[57] = 0X00;
    entrada[58] = 0X00;
    entrada[59] = 0X00;
-   DWORD clusterfree = FindFreeCluster();//entrada FAT
+   DWORD clusterfree = OccupyFreeCluster();//entrada FAT
    entrada[60] = clusterfree;
    entrada[61] =(clusterfree/16)/16;
    entrada[62] = ((((clusterfree/16)/16)/16)/16);
