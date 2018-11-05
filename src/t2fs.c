@@ -24,6 +24,7 @@ int handDirCont = 0;
 
 int main(int argc, char *argv[]){
 
+  
     return 0;
 }
 
@@ -125,27 +126,50 @@ int seek2 (FILE2 handle, DWORD offset);
 
 int mkdir2 (char *pathname){
    
+   if(FindFile(pathname) != -1)//nome de dir/arquivo ja existente
+        return -1;
    char* path = malloc(51);
    char* name = malloc(51);
    DividePathAndFile(pathname,path,name);
    
    DWORD dir_cluster = FindFile(path);
-   if(dir_cluster == -1) return -1;
-   
-   struct t2fs_record entrada = (struct t2fs_record){.TypeVal = TYPEVAL_DIRETORIO,.bytesFileSize = 1024,.clustersFileSize = 1};
-   int i;
-   for(i=0;i<51;i++)entrada.name[i] = name[i];
-   
-   
    free(path);
-   free(name);
+   if(dir_cluster == -1) {free(name);return -1;}
    
-   //ocupar entrada de diretorio
-   //alocar um cluster
-   //Além disso, deve‐se acrescentar no diretório recém criado 
-   //entradas para os diretórios “.”  ponto) e “..” (ponto‐ponto)
+   //define a entrada do novo dir
+   BYTE* entrada = malloc(64);
+   entrada[0] = TYPEVAL_DIRETORIO;
+   int i;
+   for(i=0;i<51;i++)entrada[i+1] = name[i];
+      free(name);
+   
+   struct t2fs_superbloco superbloco  = ReadSuperbloco();
+        //bytesFileSize
+   DWORD bytesFileSize = 256*superbloco.SectorsPerCluster;
+   entrada[52] = bytesFileSize;
+   entrada[53] =(bytesFileSize/16)/16;
+   entrada[54] = ((((bytesFileSize/16)/16)/16)/16);
+   entrada[55] =((((((bytesFileSize/16)/16)/16)/16)/16)/16); 
+        //ClusterFileSize
+   entrada[56] = 0X01;
+   entrada[57] = 0X00;
+   entrada[58] = 0X00;
+   entrada[59] = 0X00;
+   DWORD clusterfree = OccupyFreeCluster();//entrada FAT
+   entrada[60] = clusterfree;
+   entrada[61] =(clusterfree/16)/16;
+   entrada[62] = ((((clusterfree/16)/16)/16)/16);
+   entrada[63] =((((((clusterfree/16)/16)/16)/16)/16)/16); 
+   //escreve a entrada no dir pai
+   if(WriteInEmptyEntry(dir_cluster,entrada) == -1){free(name);free(path);free(entrada);return -1;}
+   //inicia o dir com '.' e '..'
+   if(StartNewDir(clusterfree, entrada, dir_cluster) == -1) {free(entrada);return -1;}
+   
+
+    free(entrada);
+
    return 0;
-   }
+}
    
 int rmdir2 (char *pathname);
   
