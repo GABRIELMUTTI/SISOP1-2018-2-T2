@@ -23,34 +23,8 @@ struct FilesOpen FilesHandle[10];
 int handDirCont = 0;
 
 int main(int argc, char *argv[]){
-    struct t2fs_superbloco superbloco = ReadSuperbloco();
 
-    char *buffer = malloc(sizeof(char) * 55);
-
-    struct t2fs_record *fileRecord = malloc(sizeof(struct t2fs_record));
-    ReadEntrada(137, 2, fileRecord);
-
-    struct FilesOpen *filesOpen = malloc(sizeof(struct FilesOpen));
-    filesOpen->handle = 0;
-    filesOpen->file_data = fileRecord;
-    filesOpen->CP = 0;
-    
-    FilesHandle[0] = *filesOpen;
-
-  
-    int status = read2(0, buffer, 21);
-
-    
-    printf("Status: %d\nValor: %s\n", status, buffer);
-    status = read2(0, buffer, 34);
-
-    printf("WithCP:\nStatus: %d\nValor: %s\n", status, buffer);
-    
-
-    
-    
     return 0;
-
 }
 
 
@@ -76,7 +50,7 @@ int read2 (FILE2 handle, char *buffer, int size) {
 
     unsigned int currentPointSectorOffset = filesOpen.CP % SECTOR_SIZE;
     unsigned int bufferBeginning = 0;
-    unsigned int bufferEnding = SECTOR_SIZE;
+    unsigned int bufferEnding = size;
 
     // Calcula o ceiling de size / SECTOR_SIZE.
     unsigned int numSectorsToRead = (size / SECTOR_SIZE) + ((size % SECTOR_SIZE) != 0);
@@ -86,17 +60,15 @@ int read2 (FILE2 handle, char *buffer, int size) {
     }
 
     unsigned int sizeWithoutCurrentPoint = currentPointSectorOffset + size;
-    if (sizeWithoutCurrentPoint % SECTOR_SIZE != 0) {
-	bufferEnding = sizeWithoutCurrentPoint;
-    }
 
-
+  
     char *tmpBuffer = malloc(sizeof(char) * numSectorsToRead * SECTOR_SIZE);
 
     DWORD firstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
     DWORD currentSector = (filesOpen.CP + (firstSector * SECTOR_SIZE)) / SECTOR_SIZE;
     DWORD currentCluster = (currentSector / superbloco.SectorsPerCluster);
-    
+
+    int reachedEndOfFile = 0;
     unsigned int sectorCounter = 0;
     unsigned int bytesRead = 0;
     unsigned int i;
@@ -123,16 +95,22 @@ int read2 (FILE2 handle, char *buffer, int size) {
 
 	// Chegou no final do arquivo.
 	if (currentCluster == 0xFFFFFFFF) {
+	    reachedEndOfFile = 1;
 	    break;
 	}
 
     }
-
+    
     memcpy(buffer, (tmpBuffer + bufferBeginning), bufferEnding);
     free(tmpBuffer);
 
-    bytesRead = bytesRead - currentPointSectorOffset - (SECTOR_SIZE - (sizeWithoutCurrentPoint % SECTOR_SIZE));
+    bytesRead = bytesRead - currentPointSectorOffset;
 
+    // Se chegou no final do arquivo, decrementa o excesso dos bytes lidos.
+    if (reachedEndOfFile == 1) {
+	bytesRead = bytesRead - (SECTOR_SIZE - (sizeWithoutCurrentPoint % SECTOR_SIZE));
+    }
+    
     FilesHandle[handle].CP = bytesRead +  FilesHandle[handle].CP;
     
     return bytesRead;
