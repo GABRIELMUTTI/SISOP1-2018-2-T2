@@ -29,7 +29,8 @@ int handDirCont = 0;
 int main(int argc, char *argv[]){
     
 
-
+    char* pathp = malloc (255);
+    char path[255] = "/dir1//file1.txt
     return 0;
 }
 
@@ -220,7 +221,19 @@ int rmdir2 (char *pathname)
 
 int chdir2 (char *pathname)
 {
-    strcpy(workingDir,pathname);
+    if(pathname[0] == '/') //absoluto
+        strcpy(workingDir,pathname);
+    else
+    {
+        if(pathname[2] == '.')  // relativo pai
+        {
+            
+        }
+        else  //relativo CWD
+        {
+            
+        }
+    }
     
     return 0;
 
