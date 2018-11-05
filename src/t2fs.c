@@ -18,22 +18,13 @@ struct FilesOpen {
 };
 
 struct DirsOpen DirsHandle[10];
+struct FilesOpen FilesHandle[10];
+
 int handDirCont = 0;
 
 int main(int argc, char *argv[]){
     
-    char name[51] = "/dir24\0";
-    char* namep = malloc(255);
-    int i;
-    for(i = 0; i < 51; i++ )namep[i] = name[i];
-    printf("%X\n",mkdir2(namep));
 
-
-    printf("%X\n",rmdir2(namep));
-    
-    
-    free(namep);
-    
     return 0;
 }
 
@@ -52,7 +43,79 @@ FILE2 open2 (char *filename);
 int close2 (FILE2 handle);
 
 
-int read2 (FILE2 handle, char *buffer, int size);
+int read2 (FILE2 handle, char *buffer, int size) {
+    
+    struct FilesOpen filesOpen = FilesHandle[handle];
+    struct t2fs_superbloco superbloco = ReadSuperbloco();
+    struct t2fs_record *fileRecord = filesOpen.file_data;
+
+    unsigned int currentPointSectorOffset = filesOpen.CP % SECTOR_SIZE;
+    unsigned int bufferBeginning = 0;
+    unsigned int bufferEnding = size;
+
+    // Calcula o ceiling de size / SECTOR_SIZE.
+    unsigned int numSectorsToRead = (size / SECTOR_SIZE) + ((size % SECTOR_SIZE) != 0);
+    
+    if (currentPointSectorOffset != 0) {	
+	bufferBeginning = currentPointSectorOffset;
+    }
+
+    unsigned int sizeWithoutCurrentPoint = currentPointSectorOffset + size;
+
+  
+    char *tmpBuffer = malloc(sizeof(char) * numSectorsToRead * SECTOR_SIZE);
+
+    DWORD firstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
+    DWORD currentSector = (filesOpen.CP + (firstSector * SECTOR_SIZE)) / SECTOR_SIZE;
+    DWORD currentCluster = (currentSector / superbloco.SectorsPerCluster);
+
+    int reachedEndOfFile = 0;
+    unsigned int sectorCounter = 0;
+    unsigned int bytesRead = 0;
+    unsigned int i;
+    
+    for (i = 0; i < numSectorsToRead; i++)
+    {
+	int status = read_sector(currentSector, tmpBuffer);
+
+	if (status != 0) {
+	    return -1;
+	}
+
+	bytesRead = bytesRead + SECTOR_SIZE;
+
+
+	sectorCounter = sectorCounter + 1;
+	
+	// Vai pro próximo cluster.
+	if (sectorCounter >= superbloco.SectorsPerCluster) {
+	    currentCluster = NextCluster(currentCluster);
+	    currentSector = SetorLogico_ClusterDados(currentCluster);
+	    sectorCounter = 0;
+	}
+
+	// Chegou no final do arquivo.
+	if (currentCluster == 0xFFFFFFFF) {
+	    reachedEndOfFile = 1;
+	    break;
+	}
+
+    }
+    
+    memcpy(buffer, (tmpBuffer + bufferBeginning), bufferEnding);
+    free(tmpBuffer);
+
+    bytesRead = bytesRead - currentPointSectorOffset;
+
+    // Se chegou no final do arquivo, decrementa o excesso dos bytes lidos.
+    if (reachedEndOfFile == 1) {
+	bytesRead = bytesRead - (SECTOR_SIZE - (sizeWithoutCurrentPoint % SECTOR_SIZE));
+    }
+    
+    FilesHandle[handle].CP = bytesRead +  FilesHandle[handle].CP;
+    
+    return bytesRead;
+}
 
 
 int write2 (FILE2 handle, char *buffer, int size);
