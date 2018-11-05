@@ -2,7 +2,9 @@
 #include "../include/aux.h"
 
 
+
 extern char workingDir[255];
+
 
 struct DirsOpen {
     
@@ -26,6 +28,7 @@ int handDirCont = 0;
 
 int main(int argc, char *argv[]){
     
+
 
     return 0;
 }
@@ -215,8 +218,13 @@ int rmdir2 (char *pathname)
 }
   
 
-int chdir2 (char *pathname);
+int chdir2 (char *pathname)
+{
+    strcpy(workingDir,pathname);
+    
+    return 0;
 
+}
 
 int getcwd2 (char *pathname, int size)
 {
