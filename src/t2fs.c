@@ -3,7 +3,7 @@
 
 
 
-extern char workingDir[255];
+extern char workingDir[MAX_PATH_SIZE];
 
 
 struct DirsOpen {
@@ -29,8 +29,7 @@ int handDirCont = 0;
 int main(int argc, char *argv[]){
     
 
-    char* pathp = malloc (255);
-    char path[255] = "/dir1//file1.txt
+
     return 0;
 }
 
@@ -134,7 +133,7 @@ int mkdir2 (char *pathname){
    
    if(FindFile(pathname) != -1)//nome de dir/arquivo ja existente
         return -1;
-   char* path = malloc(255);
+   char* path = malloc(MAX_PATH_SIZE);
    char* name = malloc(51);
    DividePathAndFile(pathname,path,name);
    
@@ -186,7 +185,7 @@ int rmdir2 (char *pathname)
     if(!CheckIfDirAndEmpty(cluster)) return -1;// not empty or not a dir
     
     //APAGA ENTRADA
-    char* path = malloc(255);
+    char* path = malloc(MAX_PATH_SIZE);
     char* name = malloc(51);
     DividePathAndFile(pathname, path, name);  
     EraseEntry(path,name);
@@ -221,17 +220,35 @@ int rmdir2 (char *pathname)
 
 int chdir2 (char *pathname)
 {
+    DWORD cluster = FindFile(pathname); 
+    if(cluster == -1) return -1; //DIR DOES NOT EXIST
+    BYTE* buffer = malloc(256);
+    if(read_sector(SetorLogico_ClusterDados(cluster), buffer)){free(buffer);return -1;}
+    if(buffer[0] != TYPEVAL_DIRETORIO || buffer[1] != '.')
+        {free(buffer);return -1;} //NOT A DIR
+    free(buffer);
     if(pathname[0] == '/') //absoluto
         strcpy(workingDir,pathname);
     else
     {
-        if(pathname[2] == '.')  // relativo pai
+        if(pathname[1] == '.')  // relativo pai
         {
+            while(strlen(workingDir) > 1 && workingDir[strlen(workingDir)-1] == '/') //tira qualquer '/' do final
+                workingDir[strlen(workingDir)-1] = '\0';
+            while(strlen(workingDir) > 1 && workingDir[strlen(workingDir)-1] != '/') //pega path do pai
+                workingDir[strlen(workingDir)-1] = '\0';
             
+            if(strlen(workingDir) == 1)
+                strcat(workingDir,pathname+3);
+            else
+                strcat(workingDir,pathname+2);
         }
         else  //relativo CWD
         {
-            
+            while(strlen(workingDir) > 1 && workingDir[strlen(workingDir)-1] == '/') //tira qualquer '/' do final
+                workingDir[strlen(workingDir)-1] = '\0';
+            strcat(workingDir,pathname+1);//copia tirando o '.'
+                
         }
     }
     

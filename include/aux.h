@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-
+#define MAX_PATH_SIZE 255
 
 //apaga a entrada de name no dir path
 int EraseEntry(char* path,char* name);

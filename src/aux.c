@@ -1,7 +1,7 @@
 #include "../include/aux.h"
 
 
-char workingDir[255] = "/dir1\0";
+char workingDir[MAX_PATH_SIZE] = "/dir1\0";
 
 int EraseEntry(char* path,char* name)
 {
@@ -201,6 +201,7 @@ void DividePathAndFile(char *pathname,char *path, char *name)
 
 int FindFile(char *pathname)
 {
+    if(pathname[0]=='\0') return -1;
     struct t2fs_superbloco superbloco  = ReadSuperbloco();
     int cluster;
     char name[51];
@@ -212,9 +213,9 @@ int FindFile(char *pathname)
     {
           if(pathname[1] == '.')//relativo pai 
           {
-                char* path1 = malloc(255);
+                char* path1 = malloc(MAX_PATH_SIZE);
                 strcpy(path1,workingDir);
-                char* path2 = malloc(255);
+                char* path2 = malloc(MAX_PATH_SIZE);
                 char* name2 = malloc(51);
                 DividePathAndFile(path1,path2,name2);
                 free(path1);
@@ -229,7 +230,7 @@ int FindFile(char *pathname)
                     i++;
                 else                   // relativo ex:  dir
                     i = 0;
-                char* path = malloc(255);
+                char* path = malloc(MAX_PATH_SIZE);
                 strcpy(path,workingDir);
                 cluster = FindFile(path);
                 free(path);
