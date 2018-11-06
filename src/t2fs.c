@@ -2,6 +2,10 @@
 #include "../include/aux.h"
 
 
+
+extern char workingDir[MAX_PATH_SIZE];
+
+
 struct DirsOpen {
     
     DIR2 handle;
@@ -19,9 +23,14 @@ struct FilesOpen {
 
 struct DirsOpen DirsHandle[10];
 struct FilesOpen FilesHandle[10];
+
+
 int handDirCont = 0;
 
 int main(int argc, char *argv[]){
+    
+
+
     return 0;
 }
 
@@ -40,7 +49,79 @@ FILE2 open2 (char *filename);
 int close2 (FILE2 handle);
 
 
-int read2 (FILE2 handle, char *buffer, int size);
+int read2 (FILE2 handle, char *buffer, int size) {
+    
+    struct FilesOpen filesOpen = FilesHandle[handle];
+    struct t2fs_superbloco superbloco = ReadSuperbloco();
+    struct t2fs_record *fileRecord = filesOpen.file_data;
+
+    unsigned int currentPointSectorOffset = filesOpen.CP % SECTOR_SIZE;
+    unsigned int bufferBeginning = 0;
+    unsigned int bufferEnding = size;
+
+    // Calcula o ceiling de size / SECTOR_SIZE.
+    unsigned int numSectorsToRead = (size / SECTOR_SIZE) + ((size % SECTOR_SIZE) != 0);
+    
+    if (currentPointSectorOffset != 0) {	
+	bufferBeginning = currentPointSectorOffset;
+    }
+
+    unsigned int sizeWithoutCurrentPoint = currentPointSectorOffset + size;
+
+  
+    BYTE *tmpBuffer = malloc(sizeof(BYTE) * numSectorsToRead * SECTOR_SIZE);
+
+    DWORD firstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
+    DWORD currentSector = (filesOpen.CP + (firstSector * SECTOR_SIZE)) / SECTOR_SIZE;
+    DWORD currentCluster = (currentSector / superbloco.SectorsPerCluster);
+
+    int reachedEndOfFile = 0;
+    unsigned int sectorCounter = 0;
+    unsigned int bytesRead = 0;
+    unsigned int i;
+    
+    for (i = 0; i < numSectorsToRead; i++)
+    {
+	int status = read_sector(currentSector, tmpBuffer);
+
+	if (status != 0) {
+	    return -1;
+	}
+
+	bytesRead = bytesRead + SECTOR_SIZE;
+
+
+	sectorCounter = sectorCounter + 1;
+	
+	// Vai pro próximo cluster.
+	if (sectorCounter >= superbloco.SectorsPerCluster) {
+	    currentCluster = NextCluster(currentCluster);
+	    currentSector = SetorLogico_ClusterDados(currentCluster);
+	    sectorCounter = 0;
+	}
+
+	// Chegou no final do arquivo.
+	if (currentCluster == 0xFFFFFFFF) {
+	    reachedEndOfFile = 1;
+	    break;
+	}
+
+    }
+    
+    memcpy(buffer, (tmpBuffer + bufferBeginning), bufferEnding);
+    free(tmpBuffer);
+
+    bytesRead = bytesRead - currentPointSectorOffset;
+
+    // Se chegou no final do arquivo, decrementa o excesso dos bytes lidos.
+    if (reachedEndOfFile == 1) {
+	bytesRead = bytesRead - (SECTOR_SIZE - (sizeWithoutCurrentPoint % SECTOR_SIZE));
+    }
+    
+    FilesHandle[handle].CP = bytesRead +  FilesHandle[handle].CP;
+    
+    return bytesRead;
+}
 
 
 
@@ -134,36 +215,141 @@ int seek2 (FILE2 handle, DWORD offset);
 
 int mkdir2 (char *pathname){
    
-   char* path = malloc(51);
+   if(FindFile(pathname) != -1)//nome de dir/arquivo ja existente
+        return -1;
+   char* path = malloc(MAX_PATH_SIZE);
    char* name = malloc(51);
    DividePathAndFile(pathname,path,name);
    
    DWORD dir_cluster = FindFile(path);
-   if(dir_cluster == -1) return -1;
-   
-   struct t2fs_record entrada = (struct t2fs_record){.TypeVal = TYPEVAL_DIRETORIO,.bytesFileSize = 1024,.clustersFileSize = 1};
-   int i;
-   for(i=0;i<51;i++)entrada.name[i] = name[i];
-   
-   
    free(path);
-   free(name);
+   if(dir_cluster == -1) {free(name);return -1;}
    
-   //ocupar entrada de diretorio
-   //alocar um cluster
-   //Além disso, deve‐se acrescentar no diretório recém criado 
-   //entradas para os diretórios “.”  ponto) e “..” (ponto‐ponto)
+   //define a entrada do novo dir
+   BYTE* entrada = malloc(64);
+   entrada[0] = TYPEVAL_DIRETORIO;
+   int i;
+   for(i=0;i<51;i++)entrada[i+1] = name[i];
+      free(name);
+   
+   struct t2fs_superbloco superbloco  = ReadSuperbloco();
+        //bytesFileSize
+   DWORD bytesFileSize = 256*superbloco.SectorsPerCluster;
+   entrada[52] = bytesFileSize;
+   entrada[53] =(bytesFileSize/16)/16;
+   entrada[54] = ((((bytesFileSize/16)/16)/16)/16);
+   entrada[55] =((((((bytesFileSize/16)/16)/16)/16)/16)/16); 
+        //ClusterFileSize
+   entrada[56] = 0X01;
+   entrada[57] = 0X00;
+   entrada[58] = 0X00;
+   entrada[59] = 0X00;
+   DWORD clusterfree = OccupyFreeCluster();//entrada FAT
+   entrada[60] = clusterfree;
+   entrada[61] =(clusterfree/16)/16;
+   entrada[62] = ((((clusterfree/16)/16)/16)/16);
+   entrada[63] =((((((clusterfree/16)/16)/16)/16)/16)/16);
+    
+   //escreve a entrada no dir pai
+   if(WriteInEmptyEntry(dir_cluster,entrada) == -1){free(name);free(path);free(entrada);return -1;}
+   //inicia o dir com '.' e '..'
+   if(StartNewDir(clusterfree, entrada, dir_cluster) == -1) {free(entrada);return -1;}
+   
+
+    free(entrada);
+
    return 0;
-   }
+}
    
-int rmdir2 (char *pathname);
+int rmdir2 (char *pathname)
+{
+    DWORD cluster = FindFile(pathname);
+    if(cluster == -1) return -1;//ERROR LOOKING FOR
+
+    if(!CheckIfDirAndEmpty(cluster)) return -1;// not empty or not a dir
+    
+    //APAGA ENTRADA
+    char* path = malloc(MAX_PATH_SIZE);
+    char* name = malloc(51);
+    DividePathAndFile(pathname, path, name);  
+    EraseEntry(path,name);
+    free(path);
+    free(name);
+    BYTE* buffer = malloc(SECTOR_SIZE);
+    
+    //APAGA DIRETORIO
+    struct t2fs_superbloco superbloco  = ReadSuperbloco();
+    int k;
+    for(k = 0; k < 256;k++) buffer[k] = '\0';
+    for(k=0;k < superbloco.SectorsPerCluster;k++)
+        if(write_sector(SetorLogico_ClusterDados(cluster)+k,buffer)) {free(buffer);return -1;}
+        
+    //APAGA NA FAT
+    DWORD sector_cluster = cluster/64 + superbloco.pFATSectorStart;
+    
+    if(read_sector(sector_cluster,buffer)){free(buffer);return -1;}
+    DWORD pos_atual = (cluster - 64*(sector_cluster-1))*4;
+    buffer[pos_atual] = 0;
+    buffer[pos_atual+1] = 0;
+    buffer[pos_atual+2] = 0;
+    buffer[pos_atual+3] = 0;
+    if(write_sector(sector_cluster,buffer)){free(buffer);return -1;}
+    
+    free(buffer);
+    return 0;
+
+
+}
   
 
-int chdir2 (char *pathname);
+int chdir2 (char *pathname)
+{
+    DWORD cluster = FindFile(pathname); 
+    if(cluster == -1) return -1; //DIR DOES NOT EXIST
+    BYTE* buffer = malloc(256);
+    if(read_sector(SetorLogico_ClusterDados(cluster), buffer)){free(buffer);return -1;}
+    if(buffer[0] != TYPEVAL_DIRETORIO || buffer[1] != '.')
+        {free(buffer);return -1;} //NOT A DIR
+    free(buffer);
+    if(pathname[0] == '/') //absoluto
+        strcpy(workingDir,pathname);
+    else
+    {
+        if(pathname[1] == '.')  // relativo pai
+        {
+            while(strlen(workingDir) > 1 && workingDir[strlen(workingDir)-1] == '/') //tira qualquer '/' do final
+                workingDir[strlen(workingDir)-1] = '\0';
+            while(strlen(workingDir) > 1 && workingDir[strlen(workingDir)-1] != '/') //pega path do pai
+                workingDir[strlen(workingDir)-1] = '\0';
+            
+            if(strlen(workingDir) == 1)
+                strcat(workingDir,pathname+3);
+            else
+                strcat(workingDir,pathname+2);
+        }
+        else  //relativo CWD
+        {
+            while(strlen(workingDir) > 1 && workingDir[strlen(workingDir)-1] == '/') //tira qualquer '/' do final
+                workingDir[strlen(workingDir)-1] = '\0';
+            strcat(workingDir,pathname+1);//copia tirando o '.'
+                
+        }
+    }
+    
+    return 0;
+
+}
+
+int getcwd2 (char *pathname, int size)
+{
+    int len = strlen(workingDir);
+    if(size < len) return -1;
+    
+    strcpy(pathname,workingDir);
+    return 0;
 
 
-int getcwd2 (char *pathname, int size);
-
+}
 
 DIR2 opendir2 (char *pathname)
 {

@@ -4,12 +4,27 @@
 #include <stdio.h>
 #include <string.h>
 
+#define MAX_PATH_SIZE 255
 
-//escreve uma entrada no diretório
-int WriteEntrada(DWORD cluster_dir, struct t2fs_record entrada);
+//apaga a entrada de name no dir path
+int EraseEntry(char* path,char* name);
 
-//acha um cluster vazio na FAT
-int FindFreeCluster();
+
+//devolve 1 se vazio e dir, 0 se nao
+int CheckIfDirAndEmpty(DWORD cluster);
+
+
+//Escreve as entradas '.' e '..' em um dir novo
+int StartNewDir(DWORD cluster, BYTE* new_dir_entry, DWORD cluster_father);
+
+
+
+//acha uma entrada vazia no cluster e escreve a entrada passada
+int WriteInEmptyEntry(DWORD cluster,BYTE* entrada);
+
+
+//acha um cluster vazio na FAT e o ocupa
+int OccupyFreeCluster();
 
 //recebe um pathname e divide para o path e o name
 void DividePathAndFile(char *pathname,char *path, char *name);
