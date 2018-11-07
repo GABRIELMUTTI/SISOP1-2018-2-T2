@@ -127,7 +127,23 @@ int write2 (FILE2 handle, char *buffer, int size);
     
 int truncate2 (FILE2 handle);
    
-int seek2 (FILE2 handle, DWORD offset);
+int seek2 (FILE2 handle, DWORD offset) {
+
+    struct FilesOpen filesOpen = FilesHandle[handle];
+    struct t2fs_record *fileRecord = filesOpen.file_data;
+    
+    if (offset == -1) {
+	FilesHandle[handle].CP = fileRecord->bytesFileSize;
+    } else if (offset >= 0){
+	FilesHandle[handle].CP = offset;
+	
+    // Deslocamento negativo gera um erro.
+    } else {
+	return -1;
+    }
+
+    return 0;
+}
 
 int mkdir2 (char *pathname){
    
