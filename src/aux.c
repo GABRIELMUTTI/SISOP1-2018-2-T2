@@ -203,6 +203,7 @@ int FindFile(char *pathname)
 {
     if(pathname[0]=='\0') return -1;
     struct t2fs_superbloco superbloco  = ReadSuperbloco();
+    struct t2fs_record* entrada = malloc(sizeof(struct t2fs_record));
     int cluster;
     char name[51];
     int i = 1;
@@ -258,7 +259,8 @@ int FindFile(char *pathname)
         name[j] = '\0';
         if(name[0] == '\0')  //caso o path terminar em /   ex:/dir/
             return cluster;
-        cluster = SearchEntradas(cluster, name); 
+        entrada = SearchEntradas(cluster, name);
+        cluster = entrada->firstCluster; 
          
         if(cluster < 0) return -1;
 
