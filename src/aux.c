@@ -240,7 +240,7 @@ int FindFile(char *pathname)
    
             
     
-    
+    struct t2fs_record* entrada;
     int j = 0;
     while(1)
     {
@@ -257,9 +257,11 @@ int FindFile(char *pathname)
         
         name[j] = '\0';
         if(name[0] == '\0')  //caso o path terminar em /   ex:/dir/
-            return cluster;
-        cluster = SearchEntradas(cluster, name); 
-         
+             {return cluster;}
+        entrada = SearchEntradas(cluster, name);
+        if(entrada == NULL) return -1;
+        cluster = entrada->firstCluster; 
+        free(entrada);
         if(cluster < 0) return -1;
 
       
@@ -325,7 +327,7 @@ int WriteInEmptyEntry(DWORD cluster,BYTE* entrada )
 
 
 
-int SearchEntradas(DWORD cluster,char name[51])
+struct t2fs_record* SearchEntradas(DWORD cluster,char name[51])
 {
      struct t2fs_superbloco superbloco  = ReadSuperbloco();
      float bloco = 256.0*superbloco.SectorsPerCluster/64.0;
@@ -335,13 +337,13 @@ int SearchEntradas(DWORD cluster,char name[51])
      
      BYTE* buffer2 = malloc(SECTOR_SIZE);
      //Get dir size
-     if(read_sector(sector_first ,buffer2)) {free(buffer2);return -1;} //ERROR
+     if(read_sector(sector_first ,buffer2)) {free(buffer2);return NULL;} //ERROR
      
      DWORD file_size = buffer2[52] + buffer2[53]*16*16 + buffer2[54]*16*16*16*16 + buffer2[55]*16*16*16*16*16*16;
      free(buffer2);
      
     struct t2fs_record* entrada = malloc(sizeof(struct t2fs_record));
-    if(ReadEntrada(sector_first, 2, entrada))return -1;
+    if(ReadEntrada(sector_first, 2, entrada)){free(entrada);return NULL;}
 
     int j = 3;
     int i = 3;
@@ -351,19 +353,19 @@ int SearchEntradas(DWORD cluster,char name[51])
         if(j>=bloco)  //acabou o bloco
             {
                 cluster = NextCluster(cluster);
-                if (cluster == -1)return -1;// END OF FILE;
+                if (cluster == -1){free(entrada);return NULL;}// END OF FILE;
                 sector_first = SetorLogico_ClusterDados(cluster);
                 j = 0;
             }
-        if(ReadEntrada(sector_first, j, entrada))return -1;        
+        if(ReadEntrada(sector_first, j, entrada)){free(entrada);return NULL;}        
          j++; 
          i++; 
     }
-    if(file_size/64 <= i) return -1; //END OF FILE
+    if(file_size/64 <= i) {free(entrada);return NULL;} //END OF FILE
     
     
     
-    return entrada->firstCluster;
+    return entrada;
 
 
 }

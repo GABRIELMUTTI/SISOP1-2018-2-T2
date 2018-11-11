@@ -22,7 +22,7 @@ struct FilesOpen {
 };
 
 struct DirsOpen DirsHandle[10];
-struct FilesOpen FilesHandle[10];
+struct FilesOpen FilesHandle[10] = {{0}};
 
 
 int handDirCont = 0;
@@ -43,10 +43,33 @@ FILE2 create2 (char *filename);
 
 int delete2 (char *filename);
     
-FILE2 open2 (char *filename);
+FILE2 open2 (char *filename) {
+    
+    int cluster = FindFile(filename);
+     if(cluster == -1) return -1; //arquivo não encontrado
+
+    struct t2fs_record* entrada = SearchEntradas(cluster, filename);
+    if(entrada == NULL) return -1;
+
+    int i = 0;
+
+    while(FilesHandle[i].file_data != NULL){
+        i++;
+    }
+
+    FilesHandle[i] = (struct FilesOpen){.handle = i, .file_data = entrada, .CP = 0};
+
+    return i;
+
+}
 
 
-int close2 (FILE2 handle);
+int close2 (FILE2 handle){
+    free(FilesHandle[handle].file_data);
+    FilesHandle[handle] = (struct FilesOpen){.handle = -1, .file_data = NULL, .CP = 0};
+
+    return 0;
+}
 
 
 int read2 (FILE2 handle, char *buffer, int size) {
