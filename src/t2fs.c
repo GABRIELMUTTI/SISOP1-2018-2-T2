@@ -38,7 +38,48 @@ int main(int argc, char *argv[]){
 int identify2 (char *name, int size);
 
 
-FILE2 create2 (char *filename);
+FILE2 create2 (char *filename)
+{
+    if(FindFile(filename) != -1) //nome de dir/arquivo ja existente
+        return -1;
+        
+    DWORD dir_cluster = FindFile(workingDir);
+    if(dir_cluster == -1) return -1;
+    
+    
+    //define a entrada do novo arquivo
+    BYTE* entrada = malloc(sizeof(t2fs_record));
+    entrada[0] = TYPEVAL_REGULAR;
+    int i;
+    for(i=0;i<51;i++)entrada[i+1] = filename[i];
+        //bytesFileSize
+    struct t2fs_superbloco superbloco = ReadSuperbloco();
+    entrada[52] = 0;
+    entrada[53] = 0;
+    entrada[54] = 0;
+    entrada[55] = 0;
+        //ClusterFileSize
+    entrada[56] = 0X01;
+    entrada[57] = 0X00;
+    entrada[58] = 0X00;
+    entrada[59] = 0X00;    
+        //FirstCluster
+    DWORD clusterfree = OccupyFreeCluster();//entrada FAT
+    entrada[60] = clusterfree;
+    entrada[61] =(clusterfree/16)/16;
+    entrada[62] = ((((clusterfree/16)/16)/16)/16);
+    entrada[63] =((((((clusterfree/16)/16)/16)/16)/16)/16);        
+    
+    //escreve a entrada no dir pai
+    if(WriteInEmptyEntry(dir_cluster,entrada) == -1){free(entrada);return -1;}
+    
+    
+    int handle = open2(filename);
+    
+    
+    return handle;
+
+}
 
 
 int delete2 (char *filename);
@@ -148,7 +189,7 @@ int read2 (FILE2 handle, char *buffer, int size) {
 
 
 
-int write2 (FILE2 handle, char *buffer, int size) {
+int write2 (FILE2 handle, char   *buffer, int size) {
     struct FilesOpen filesOpen = FilesHandle[handle];
     struct t2fs_record *fileRecord = filesOpen.file_data;
     struct t2fs_superbloco superblock = ReadSuperbloco();
@@ -156,8 +197,8 @@ int write2 (FILE2 handle, char *buffer, int size) {
     unsigned int numSectorsToWrite = (size / SECTOR_SIZE) + (size % SECTOR_SIZE != 0);
     DWORD fileFirstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
     
-    char *firstSectorBuffer = malloc(sizeof(char) * SECTOR_SIZE);
-    char *lastSectorBuffer = malloc(sizeof(char) * SECTOR_SIZE);
+    BYTE *firstSectorBuffer = malloc(sizeof(char) * SECTOR_SIZE);
+    BYTE *lastSectorBuffer = malloc(sizeof(char) * SECTOR_SIZE);
 
     DWORD currentPointerSector = ((fileFirstSector * SECTOR_SIZE) + filesOpen.CP) / SECTOR_SIZE;
     
@@ -185,7 +226,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	    sectorCounter = 0;
 	}
 
-	if (currentCluster = 0xFFFFFFFF) {
+	if (currentCluster == 0xFFFFFFFF) {
 	    break;
 	}
     }
