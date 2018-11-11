@@ -44,13 +44,12 @@ FILE2 create2 (char *filename);
 int delete2 (char *filename);
     
 FILE2 open2 (char *filename) {
-
-
-    struct t2fs_record* entrada = malloc(sizeof(struct t2fs_record));
-    char *pathname = strcat(filename, workingDir);
     
-    int cluster = FindFile(pathname);
-    entrada = SearchEntradas(cluster, filename);
+    int cluster = FindFile(filename);
+     if(cluster == -1) {free(entrada); return -1} //arquivo não encontrado
+
+    struct t2fs_record* entrada = SearchEntradas(cluster, filename);
+    if(entrada == NULL) return -1;
 
     int i = 0;
 
@@ -66,9 +65,10 @@ FILE2 open2 (char *filename) {
 
 
 int close2 (FILE2 handle){
+    free(FilesHandle[handle].file_data);
     FilesHandle[handle] = (struct FilesOpen){.handle = NULL, .file_data = NULL, .CP = NULL};
 
-    return handle;
+    return 0;
 }
 
 

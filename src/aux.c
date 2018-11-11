@@ -258,7 +258,7 @@ int FindFile(char *pathname)
         
         name[j] = '\0';
         if(name[0] == '\0')  //caso o path terminar em /   ex:/dir/
-            return cluster;
+             {free(entrada);return cluster;}
         entrada = SearchEntradas(cluster, name);
         cluster = entrada->firstCluster; 
          
