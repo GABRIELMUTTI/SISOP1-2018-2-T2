@@ -57,7 +57,7 @@ FILE2 create2 (char *filename)
         struct t2fs_record* entrada = SearchEntradas(dir_cluster, name); 
         if(entrada->TypeVal != TYPEVAL_REGULAR ) {free(entrada);free(name); return -1;}
         free(entrada);
-	//if(delete2(filename)) {free(name);return -1;}    
+	    if(delete2(filename)) {free(name);return -1;}    
     }
     
     //define a entrada do novo arquivo
