@@ -261,6 +261,9 @@ int truncate2 (FILE2 handle) {
 
 	UpdateFATEntry(currentCluster, 0);
     }
+
+    // Atualiza último cluster.
+    UpdateFATEntry(currentCluster, 0);
     
     fileRecord->bytesFileSize = filesOpen.CP;
     filesOpen.CP = filesOpen.CP - 1;
