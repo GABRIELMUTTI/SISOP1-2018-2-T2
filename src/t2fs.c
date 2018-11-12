@@ -44,23 +44,35 @@ int identify2 (char *name, int size);
 
 FILE2 create2 (char *filename)
 {
-    if(FindFile(filename) != -1) //nome de dir/arquivo ja existente
-        return -1;
-        
-    DWORD dir_cluster = FindFile(workingDir);
-    if(dir_cluster == -1) return -1;
+
+	
+	
+    char* path = malloc(MAX_PATH_SIZE);
+    char* name = malloc(51);
+    DividePathAndFile(filename, path, name);
+    DWORD dir_cluster = FindFile(path);
+    free(path);
+    if(dir_cluster == -1) {free(name);return -1;}
     
+    if(FindFile(filename) != -1) //nome de dir/arquivo ja existente
+    {
+        struct t2fs_record* entrada = SearchEntradas(dir_cluster, name); 
+        if(entrada->TypeVal != TYPEVAL_REGULAR ) {free(entrada); return -1;}
+        free(entrada);
+	if(delete2(filename)) return -1;    
+    }
     
     //define a entrada do novo arquivo
     BYTE* entrada = malloc(sizeof(struct t2fs_record));
     entrada[0] = TYPEVAL_REGULAR;
     int i = 0;
-    while(filename[i] != '\0')
-        {entrada[i+1] = filename[i]; i++;}
+    while(name[i] != '\0')
+        {entrada[i+1] = name[i]; i++;}
+    free(name);
     int j;
     for(j = i;j<51;j++)entrada[j+1] = '\0';
-        //bytesFileSize
-   
+       
+	//bytesFileSize
     entrada[52] = 0;
     entrada[53] = 0;
     entrada[54] = 0;
@@ -80,7 +92,7 @@ FILE2 create2 (char *filename)
     //escreve a entrada no dir pai
     if(WriteInEmptyEntry(dir_cluster,entrada) == -1){free(entrada);return -1;}
     
-    
+    free(entrada);
     int handle = open2(filename);
     
     
@@ -93,10 +105,15 @@ int delete2 (char *filename);
     
 FILE2 open2 (char *filename) {
     
-    int cluster = FindFile(workingDir);
-     if(cluster == -1) return -1; //arquivo não encontrado
+    char* path = malloc(MAX_PATH_SIZE);
+    char* name = malloc(51);
+    DividePathAndFile(filename, path, name);
+    DWORD cluster = FindFile(path);
+    free(path);
+    if(cluster == -1) {free(name);return -1;} //arquivo não encontrado
 
-    struct t2fs_record* entrada = SearchEntradas(cluster, filename);
+    struct t2fs_record* entrada = SearchEntradas(cluster, name);
+    free(name);
     if(entrada == NULL) return -1;
     
     int i = 0;
