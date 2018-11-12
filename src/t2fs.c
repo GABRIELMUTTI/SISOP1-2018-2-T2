@@ -146,7 +146,6 @@ int read2 (FILE2 handle, char *buffer, int size) {
     return bytesRead;
 }
 
-<<<<<<< HEAD
 
 
 int write2 (FILE2 handle, char *buffer, int size) {
@@ -232,9 +231,6 @@ int write2 (FILE2 handle, char *buffer, int size) {
     
     return bytesWritten;
 }
-=======
-int write2 (FILE2 handle, char *buffer, int size);
->>>>>>> Implemented truncate2
     
 int truncate2 (FILE2 handle) {
 
