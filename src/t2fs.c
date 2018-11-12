@@ -29,7 +29,11 @@ int handDirCont = 0;
 
 int main(int argc, char *argv[]){
     
+   
+    
 
+    printf("%d \n", create2("file32\0"));
+    
 
     return 0;
 }
@@ -48,12 +52,15 @@ FILE2 create2 (char *filename)
     
     
     //define a entrada do novo arquivo
-    BYTE* entrada = malloc(sizeof(t2fs_record));
+    BYTE* entrada = malloc(sizeof(struct t2fs_record));
     entrada[0] = TYPEVAL_REGULAR;
-    int i;
-    for(i=0;i<51;i++)entrada[i+1] = filename[i];
+    int i = 0;
+    while(filename[i] != '\0')
+        {entrada[i+1] = filename[i]; i++;}
+    int j;
+    for(j = i;j<51;j++)entrada[j+1] = '\0';
         //bytesFileSize
-    struct t2fs_superbloco superbloco = ReadSuperbloco();
+   
     entrada[52] = 0;
     entrada[53] = 0;
     entrada[54] = 0;
@@ -86,12 +93,12 @@ int delete2 (char *filename);
     
 FILE2 open2 (char *filename) {
     
-    int cluster = FindFile(filename);
+    int cluster = FindFile(workingDir);
      if(cluster == -1) return -1; //arquivo não encontrado
 
     struct t2fs_record* entrada = SearchEntradas(cluster, filename);
     if(entrada == NULL) return -1;
-
+    
     int i = 0;
 
     while(FilesHandle[i].file_data != NULL){
