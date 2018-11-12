@@ -441,6 +441,57 @@ DWORD NextCluster(DWORD cluster_atual)
     return next_cluster;
 }
 
+DWORD FindFileOffsetSector(struct t2fs_record *fileRecord, DWORD offset) {
+
+    struct t2fs_superbloco superblock = ReadSuperbloco();
+    unsigned int numOffsetSectors = offset / SECTOR_SIZE + (offset % SECTOR_SIZE == 0);
+    
+    DWORD currentCluster = fileRecord->firstCluster;
+    unsigned int sectorCounter = 0;
+    unsigned int offsetSectorCounter = 1;
+
+    // Acha o setor do offset nos outros clusters.
+    while (offsetSectorCounter < numOffsetSectors && currentCluster != 0xFFFFFFFF) {
+			
+	offsetSectorCounter = offsetSectorCounter + 1;
+	sectorCounter = sectorCounter + 1;
+	
+	if (sectorCounter >= superblock.SectorsPerCluster) {
+	    sectorCounter = 0;
+	}
+	
+	currentCluster = NextCluster(currentCluster);
+    }
+
+    return SetorLogico_ClusterDados(currentCluster) + sectorCounter - 1;
+}
+
+int UpdateFatEntry(unsigned int entry, DWORD value) {
+    struct t2fs_superbloco superblock = ReadSuperbloco();
+
+    unsigned int entrySector = superblock.pFATSectorStart + (entry / (SECTOR_SIZE / superblock.SectorsPerCluster));
+
+    DWORD *buffer = malloc(sizeof(DWORD) * SECTOR_SIZE / 4);
+    if (buffer == 0) { return -1; }
+
+    if (read_sector(entrySector, buffer)) {
+	free(buffer);
+	return -1;
+    }
+
+    unsigned int entryIndex = entry % (SECTOR_SIZE / 4);
+    buffer[entryIndex] = value;
+
+    if (write_sector(entrySector, buffer)) {
+	free(buffer);
+	return -1;
+    }
+
+    free(buffer);
+    return 0;
+    
+}
+
 
 
 
