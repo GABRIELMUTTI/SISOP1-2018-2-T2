@@ -46,7 +46,7 @@ int delete2 (char *filename);
 FILE2 open2 (char *filename) {
     
     int cluster = FindFile(filename);
-     if(cluster == -1) {return -1} //arquivo não encontrado
+     if(cluster == -1) return -1; //arquivo não encontrado
 
     struct t2fs_record* entrada = SearchEntradas(cluster, filename);
     if(entrada == NULL) return -1;
@@ -66,7 +66,7 @@ FILE2 open2 (char *filename) {
 
 int close2 (FILE2 handle){
     free(FilesHandle[handle].file_data);
-    FilesHandle[handle] = (struct FilesOpen){.handle = NULL, .file_data = NULL, .CP = NULL};
+    FilesHandle[handle] = (struct FilesOpen){.handle = -1, .file_data = NULL, .CP = 0};
 
     return 0;
 }
