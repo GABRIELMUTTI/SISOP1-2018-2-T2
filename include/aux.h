@@ -50,3 +50,5 @@ int FindFile(char *pathname);
 DWORD FindFileOffsetSector(struct t2fs_record *fileRecord, DWORD offset);
 
 void UpdateFatEntry(unsigned int entry, DWORD value);
+//acha o ultimo cluster de um arquivo
+DWORD FindLastCluster(DWORD firstCluster);

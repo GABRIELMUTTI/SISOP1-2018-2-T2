@@ -170,6 +170,34 @@ int write2 (FILE2 handle, char *buffer, int size) {
     int status;
     unsigned int i;
 
+    
+    // Aloca clusters se faltar espaço.
+    unsigned int finalFilesize = filesOpen.CP + size;
+
+    
+    if (finalFilesize > fileRecord->bytesFileSize) {
+	unsigned int sizeDifference = finalFilesize = fileRecord->bytesFileSize;
+	unsigned int clusterSize = SECTOR_SIZE * superblock.SectorsPerCluster;
+	unsigned int numAllocatedClusters = (fileRecord->bytesFileSize / clusterSize) + (fileRecord->bytesFileSize % clusterSize == 0);
+	unsigned int numClustersWithWrite = (finalFilesize / clusterSize) + (finalFilesize % clusterSize == 0);
+	unsigned int numClustersToAllocate = numClustersWithWrite - numAllocatedClusters;
+
+	DWORD lastCluster = FindLastCluster(fileRecord->firstCluster);
+	
+	unsigned int i;
+	for (i = 0; i < numClustersToAllocate; i++) {
+	    //OccupyFreeCluster();
+	}
+	
+	
+	
+    } else {
+	finalFilesize = fileRecord->bytesFileSize;
+    }
+    
+    
+
+    
     // Escreve os setores do "meio".
     for (i = 1; i < numSectorsToWrite - 1; i++) {
 	status = write_sector(currentSector, buffer + (i * SECTOR_SIZE));
@@ -186,7 +214,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	    sectorCounter = 0;
 	}
 
-	if (currentCluster = 0xFFFFFFFF) {
+	if (currentCluster == 0xFFFFFFFF) {
 	    break;
 	}
     }

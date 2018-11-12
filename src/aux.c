@@ -492,6 +492,36 @@ int UpdateFatEntry(unsigned int entry, DWORD value) {
     
 }
 
+DWORD FindLastCluster(DWORD firstCluster)
+{
+    struct t2fs_superbloco superblock = ReadSuperbloco();
+    unsigned int numEntriesPerSector = SECTOR_SIZE / 4;
+    unsigned int entrySector = superblock.pFATSectorStart + (firstCluster / numEntriesPerSector);
+    
 
+    DWORD *buffer = malloc(sizeof(DWORD) * SECTOR_SIZE);
+
+    // Não conseguiu alocar.
+    if (buffer == 0) { return -1; }
+
+    
+    DWORD currentCluster;
+    unsigned int currentEntry = firstCluster;
+
+    do {
+	
+	if (read_sector(entry, buffer) != 0) {
+	    free(buffer);
+	    return -1;
+	}
+
+	currentCluster = buffer[currentEntry];
+	
+    } while(currentCluster != 0xFFFFFFFF);
+	
+
+    free(buffer);
+    return currentCluster;
+}
 
 
