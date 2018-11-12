@@ -469,11 +469,13 @@ DWORD FindFileOffsetSector(struct t2fs_record *fileRecord, DWORD offset) {
 int UpdateFatEntry(unsigned int entry, DWORD value) {
     struct t2fs_superbloco superblock = ReadSuperbloco();
 
-    unsigned int entrySector = superblock.pFATSectorStart + (entry / (SECTOR_SIZE / 4));
+    unsigned int entrySector = superblock.pFATSectorStart + (entry / (SECTOR_SIZE / superblock.SectorsPerCluster));
 
     DWORD *buffer = malloc(sizeof(DWORD) * SECTOR_SIZE / 4);
+    if (buffer == 0) { return -1; }
 
     if (read_sector(entrySector, buffer)) {
+	free(buffer);
 	return -1;
     }
 
@@ -481,9 +483,11 @@ int UpdateFatEntry(unsigned int entry, DWORD value) {
     buffer[entryIndex] = value;
 
     if (write_sector(entrySector, buffer)) {
+	free(buffer);
 	return -1;
     }
 
+    free(buffer);
     return 0;
     
 }
