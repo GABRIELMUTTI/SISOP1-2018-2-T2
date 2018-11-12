@@ -7,6 +7,8 @@ int EraseEntry(char* path,char* name)
 {
      DWORD cluster = FindFile(path);
      if(cluster == -1) return -1;
+     
+     if(NextCluster(cluster) == 0xFFFFFFFE) return -1; //corrompido
 
      char nameEntry[51];
      int x;
@@ -50,6 +52,8 @@ int EraseEntry(char* path,char* name)
 
 int CheckIfDirAndEmpty(DWORD cluster)
 {     
+
+    if(NextCluster(cluster) == 0xFFFFFFFE) return -1; //corrompido
      DWORD sector = SetorLogico_ClusterDados(cluster);
      
      
@@ -99,6 +103,7 @@ int CheckIfDirAndEmpty(DWORD cluster)
 
 int StartNewDir(DWORD cluster, BYTE* new_dir_entry, DWORD cluster_father)
 {
+    if(NextCluster(cluster) == 0xFFFFFFFE) return -1; //corrompido
     DWORD newDirSector = SetorLogico_ClusterDados(cluster);
     BYTE* buffer = malloc(256);
     if(read_sector(newDirSector, buffer)) {free(buffer);return -1;}
@@ -140,14 +145,14 @@ int OccupyFreeCluster()
     struct t2fs_superbloco superbloco  = ReadSuperbloco();
     DWORD sector = superbloco.pFATSectorStart;
     BYTE* buffer = malloc(SECTOR_SIZE);
-    read_sector(sector, buffer);
+    if(read_sector(sector, buffer)) {free(buffer); return -1;}
     DWORD pos_atual = 0;
     DWORD clusterIndex = 0;
     while(1)
     {
         if(pos_atual >= 256) //fim do setor
         {
-            read_sector(++sector, buffer);
+            if(read_sector(++sector, buffer)){free(buffer); return -1;}
             pos_atual = 0;
         }
         DWORD cluster = buffer[pos_atual] + buffer[pos_atual+1]*16*16 + buffer[pos_atual+2]*16*16*16*16 + buffer[pos_atual+3]*16*16*16*16*16*16;
@@ -160,7 +165,7 @@ int OccupyFreeCluster()
     buffer[pos_atual+1] = 0XFF;
     buffer[pos_atual+2] = 0XFF;
     buffer[pos_atual+3] = 0XFF;
-    write_sector(sector,buffer);
+    if(write_sector(sector,buffer)) {free(buffer); return -1;}
 
     free(buffer);
     return clusterIndex;
@@ -237,7 +242,7 @@ int FindFile(char *pathname)
                 
          }
     }
-   
+   if(NextCluster(cluster) == 0xFFFFFFFE) return -1; //corrompido
             
     
     struct t2fs_record* entrada;
@@ -262,6 +267,7 @@ int FindFile(char *pathname)
         if(entrada == NULL) return -1;
         cluster = entrada->firstCluster; 
         free(entrada);
+        if(NextCluster(cluster) == 0xFFFFFFFE) return -1; //corrompido
         if(cluster < 0) return -1;
 
       
@@ -273,6 +279,7 @@ int FindFile(char *pathname)
 
 int WriteInEmptyEntry(DWORD cluster,BYTE* entrada )
 {
+    if(NextCluster(cluster) == 0xFFFFFFFE) return -1; //corrompido
      struct t2fs_superbloco superbloco  = ReadSuperbloco();
      int bloco = 256.0*superbloco.SectorsPerCluster/64.0;
      
@@ -292,7 +299,8 @@ int WriteInEmptyEntry(DWORD cluster,BYTE* entrada )
         if(i%bloco == 0.0)  //acabou o bloco
             {
                 cluster = NextCluster(cluster);
-                if (cluster == -1)return -1;;// END OF FILE;
+                if (cluster == -1){free(buffer2);return -1;}// END OF FILE;
+                if(NextCluster(cluster) == 0xFFFFFFFE) {free(buffer2);return -1;} //corrompido
                 sector = SetorLogico_ClusterDados(cluster);
                 if(read_sector(sector ,buffer2)) {free(buffer2);return -1;} //ERROR
                 j = -1;
@@ -329,6 +337,7 @@ int WriteInEmptyEntry(DWORD cluster,BYTE* entrada )
 
 struct t2fs_record* SearchEntradas(DWORD cluster,char name[51])
 {
+    if(NextCluster(cluster) == 0xFFFFFFFE) return NULL; //corrompido
      struct t2fs_superbloco superbloco  = ReadSuperbloco();
      float bloco = 256.0*superbloco.SectorsPerCluster/64.0;
      
@@ -348,12 +357,13 @@ struct t2fs_record* SearchEntradas(DWORD cluster,char name[51])
     int j = 3;
     int i = 3;
     
-    while(strcmp(name,entrada->name)!=0 && file_size/64 > i)
+    while(entrada->TypeVal != TYPEVAL_INVALIDO && strcmp(name,entrada->name)!=0 && file_size/64 > i)
     {
         if(j>=bloco)  //acabou o bloco
             {
                 cluster = NextCluster(cluster);
                 if (cluster == -1){free(entrada);return NULL;}// END OF FILE;
+                if(NextCluster(cluster) == 0xFFFFFFFE) {free(entrada);return NULL;} //corrompido
                 sector_first = SetorLogico_ClusterDados(cluster);
                 j = 0;
             }
@@ -447,6 +457,7 @@ DWORD FindFileOffsetSector(struct t2fs_record *fileRecord, DWORD offset) {
     unsigned int numOffsetSectors = offset / SECTOR_SIZE + (offset % SECTOR_SIZE == 0);
     
     DWORD currentCluster = fileRecord->firstCluster;
+    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
     unsigned int sectorCounter = 0;
     unsigned int offsetSectorCounter = 1;
 
@@ -461,6 +472,7 @@ DWORD FindFileOffsetSector(struct t2fs_record *fileRecord, DWORD offset) {
 	}
 	
 	currentCluster = NextCluster(currentCluster);
+	if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
     }
 
     return SetorLogico_ClusterDados(currentCluster) + sectorCounter - 1;

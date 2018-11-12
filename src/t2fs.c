@@ -47,6 +47,7 @@ FILE2 open2 (char *filename) {
     
     int cluster = FindFile(filename);
      if(cluster == -1) return -1; //arquivo não encontrado
+     if(NextCluster(cluster) == 0xFFFFFFFE) return -1; //corrompido
 
     struct t2fs_record* entrada = SearchEntradas(cluster, filename);
     if(entrada == NULL) return -1;
@@ -93,11 +94,11 @@ int read2 (FILE2 handle, char *buffer, int size) {
 
   
     BYTE *tmpBuffer = malloc(sizeof(BYTE) * numSectorsToRead * SECTOR_SIZE);
-
+    if(NextCluster(fileRecord->firstCluster) == 0xFFFFFFFE) return -1; //corrompido
     DWORD firstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
     DWORD currentSector = (filesOpen.CP + (firstSector * SECTOR_SIZE)) / SECTOR_SIZE;
     DWORD currentCluster = (currentSector / superbloco.SectorsPerCluster);
-
+    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
     int reachedEndOfFile = 0;
     unsigned int sectorCounter = 0;
     unsigned int bytesRead = 0;
@@ -119,6 +120,7 @@ int read2 (FILE2 handle, char *buffer, int size) {
 	// Vai pro próximo cluster.
 	if (sectorCounter >= superbloco.SectorsPerCluster) {
 	    currentCluster = NextCluster(currentCluster);
+	    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
 	    currentSector = SetorLogico_ClusterDados(currentCluster);
 	    sectorCounter = 0;
 	}
@@ -166,6 +168,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
 
     DWORD currentSector = currentPointerSector;
     DWORD currentCluster = currentPointerSector / superblock.SectorsPerCluster;
+    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
     unsigned int sectorCounter = 0;
     int status;
     unsigned int i;
@@ -215,6 +218,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
 
 	if (sectorCounter >= superblock.SectorsPerCluster) {
 	    currentCluster = NextCluster(currentCluster);
+	    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
 	    sectorCounter = 0;
 	}
 
@@ -283,6 +287,7 @@ int truncate2 (FILE2 handle) {
     DWORD currentPointerSector = FindFileOffsetSector(fileRecord, filesOpen.CP);
   
     DWORD currentCluster = currentPointerSector / superblock.SectorsPerCluster;
+    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
     DWORD sectorCounter = (currentPointerSector % superblock.SectorsPerCluster) + 1;
 
     while (currentCluster != 0xFFFFFFFF) {
@@ -292,6 +297,7 @@ int truncate2 (FILE2 handle) {
 	if (sectorCounter >= superblock.SectorsPerCluster) {
 	    sectorCounter = 0;
 	    currentCluster = NextCluster(currentCluster);
+	    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
 	}
 
 	UpdateFatEntry(currentCluster, 0);
@@ -335,7 +341,7 @@ int mkdir2 (char *pathname){
    DWORD dir_cluster = FindFile(path);
    free(path);
    if(dir_cluster == -1) {free(name);return -1;}
-   
+   if(NextCluster(dir_cluster) == 0xFFFFFFFE) {free(name);return -1;} //corrompido
    //define a entrada do novo dir
    BYTE* entrada = malloc(64);
    entrada[0] = TYPEVAL_DIRETORIO;
@@ -376,7 +382,7 @@ int rmdir2 (char *pathname)
 {
     DWORD cluster = FindFile(pathname);
     if(cluster == -1) return -1;//ERROR LOOKING FOR
-
+    if(NextCluster(cluster) == 0xFFFFFFFE) return -1; //corrompido
     if(!CheckIfDirAndEmpty(cluster)) return -1;// not empty or not a dir
     
     //APAGA ENTRADA
@@ -417,6 +423,7 @@ int chdir2 (char *pathname)
 {
     DWORD cluster = FindFile(pathname); 
     if(cluster == -1) return -1; //DIR DOES NOT EXIST
+    if(NextCluster(cluster) == 0xFFFFFFFE) return -1; //corrompido
     BYTE* buffer = malloc(256);
     if(read_sector(SetorLogico_ClusterDados(cluster), buffer)){free(buffer);return -1;}
     if(buffer[0] != TYPEVAL_DIRETORIO || buffer[1] != '.')
@@ -466,6 +473,7 @@ DIR2 opendir2 (char *pathname)
 {
     DWORD file_cluster = FindFile(pathname);
     if(file_cluster == -1) return -1; //ERROR
+    if(NextCluster(file_cluster) == 0xFFFFFFFE) return -1; //corrompido
     
     DirsHandle[handDirCont] = (struct DirsOpen){.handle = handDirCont,.first_cluster = file_cluster, .CE = 0}; 
     
@@ -478,7 +486,7 @@ DIR2 opendir2 (char *pathname)
 int readdir2 (DIR2 handle, DIRENT2 *dentry)
 {
      BYTE* buffer2 = malloc(SECTOR_SIZE);
-     
+     if(NextCluster(DirsHandle[handle].first_cluster) == 0xFFFFFFFE) return -1; //corrompido
      DWORD firstSector = SetorLogico_ClusterDados(DirsHandle[handle].first_cluster); 
      //Get dir size
      if(read_sector(firstSector ,buffer2)) {free(buffer2);return -1;} //ERROR
