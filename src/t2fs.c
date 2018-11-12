@@ -63,8 +63,8 @@ int read2 (FILE2 handle, char *buffer, int size) {
     unsigned int sizeWithoutCurrentPoint = currentPointSectorOffset + size;
 
   
-    char *tmpBuffer = malloc(sizeof(char) * numSectorsToRead * SECTOR_SIZE);
-
+    BYTE *tmpBuffer = malloc(sizeof(BYTE) * numSectorsToRead * SECTOR_SIZE);
+    
     DWORD firstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
     DWORD currentSector = (filesOpen.CP + (firstSector * SECTOR_SIZE)) / SECTOR_SIZE;
     DWORD currentCluster = (currentSector / superbloco.SectorsPerCluster);
@@ -79,6 +79,7 @@ int read2 (FILE2 handle, char *buffer, int size) {
 	int status = read_sector(currentSector, tmpBuffer);
 
 	if (status != 0) {
+	    free(tmpBuffer);
 	    return -1;
 	}
 
