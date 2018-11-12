@@ -32,9 +32,6 @@ int main(int argc, char *argv[]){
    
     
 
-    printf("%d \n", create2("file32\0"));
-    
-
     return 0;
 }
 
