@@ -122,10 +122,43 @@ int read2 (FILE2 handle, char *buffer, int size) {
     return bytesRead;
 }
 
-
 int write2 (FILE2 handle, char *buffer, int size);
     
-int truncate2 (FILE2 handle);
+int truncate2 (FILE2 handle) {
+
+    struct t2fs_superbloco superblock = ReadSuperbloco();
+    
+    if (size < 0) {
+	return -1;
+    }
+
+    struct FilesOpen filesOpen = FilesHandle[handle];
+    struct t2fs_record *fileRecord = filesOpen.file_data;
+
+    DWORD currentPointerSector = FindFileOffsetSector(fileRecord, filesOpen.CP);
+  
+    DWORD currentCluster = currentPointerSector / superblock.SectorsPerCluster;
+    DWORD sectorCounter = (currentPointerSector % superblock.SectorsPerCluster) + 1;
+
+    while (currentCluster != 0xFFFFFFFF) {
+
+
+	
+	sectorCounter = sectorCounter + 1;
+
+	if (sectorCounter >= superblock.SectorsPerCluster) {
+	    sectorCounter = 0;
+	    currentCluster = NextCluster(currentCluster);
+	}
+
+	UpdateFATEntry(currentCluster, 0);
+    }
+    
+    fileRecord->bytesFileSize = filesOpen.CP;
+    filesOpen.CP = filesOpen.CP - 1;
+
+    return 0;
+}
    
 int seek2 (FILE2 handle, DWORD offset);
 
