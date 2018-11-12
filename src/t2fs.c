@@ -30,7 +30,6 @@ int handDirCont = 0;
 int main(int argc, char *argv[]){
     
    
-    
 
     return 0;
 }
@@ -105,8 +104,10 @@ int delete2 (char *filename)
     char* path = malloc(MAX_PATH_SIZE);
     char* name = malloc(51);
     DividePathAndFile(filename, path, name);
+    printf("%s\n",path);
     DWORD dir_cluster = FindFile(path);
     if(dir_cluster == -1) {free(path);free(name);return -1;}
+    printf("ALOOOOOO\n");
     if(NextCluster(dir_cluster) == 0xFFFFFFFE) {free(path);free(name);return -1;} //corrompido
     if(FindFile(filename) == -1){free(path);free(name);return -1;}   //nome de arquivo nao existente
     
@@ -133,7 +134,7 @@ int delete2 (char *filename)
 	
         for(k = 0; k < 256;k++) buffer[k] = '\0';
         for(k=0;k < superbloco.SectorsPerCluster;k++)
-            if(write_sector(SetorLogico_ClusterDados(cluster)+k,buffer)) {free(buffer)
+            if(write_sector(SetorLogico_ClusterDados(cluster)+k,buffer)) {free(buffer);return -1;}
 	    cluster = NextCluster(cluster);
 	    if(cluster == 0xFFFFFFFE){free(buffer);return -1;}
 	}
