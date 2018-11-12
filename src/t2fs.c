@@ -98,7 +98,70 @@ FILE2 create2 (char *filename)
 }
 
 
-int delete2 (char *filename);
+int delete2 (char *filename)
+{
+
+    //VERIFICA SE EXISTE
+    char* path = malloc(MAX_PATH_SIZE);
+    char* name = malloc(51);
+    DividePathAndFile(filename, path, name);
+    DWORD dir_cluster = FindFile(path);
+    if(dir_cluster == -1) {free(path);free(name);return -1;}
+    if(NextCluster(dir_cluster) == 0xFFFFFFFE) {free(path);free(name);return -1;} //corrompido
+    if(FindFile(filename) == -1){free(path);free(name);return -1;}   //nome de arquivo nao existente
+    
+    //Verifica se arquivo regular
+    struct t2fs_record* entrada = SearchEntradas(dir_cluster, name); 
+    if(entrada->TypeVal != TYPEVAL_REGULAR ) {free(path);free(entrada);free(name); return -1;}
+    int firstCluster = entrada->firstCluster;
+    free(entrada);
+	if(NextCluster(dir_cluster) == 0xFFFFFFFE){free(path);free(name);return -1;}
+	
+	//APAGA ENTRADA
+	if(EraseEntry(path,name)) {free(path);free(name);return -1;}
+    free(path);
+    free(name);
+    
+	int cluster = firstCluster;
+	
+	//APAGA ARQUIVO
+	struct t2fs_superbloco superbloco = ReadSuperbloco();
+    int k;
+    BYTE* buffer = malloc(SECTOR_SIZE);
+	while(cluster != -1)
+	{
+	
+        for(k = 0; k < 256;k++) buffer[k] = '\0';
+        for(k=0;k < superbloco.SectorsPerCluster;k++)
+            if(write_sector(SetorLogico_ClusterDados(cluster)+k,buffer)) {free(buffer)
+	    cluster = NextCluster(cluster);
+	    if(cluster == 0xFFFFFFFE){free(buffer);return -1;}
+	}
+	
+		
+	cluster = firstCluster;
+	//APAGA NA FAT
+	DWORD sector_cluster;
+	DWORD pos_atual;
+	
+	while(cluster != -1)
+	{
+	    sector_cluster = cluster/64 + superbloco.pFATSectorStart;
+        if(read_sector(sector_cluster,buffer)){free(buffer);return -1;}
+        pos_atual = (cluster - 64*(sector_cluster-1))*4;
+        cluster = NextCluster(cluster);
+        buffer[pos_atual] = 0;
+        buffer[pos_atual+1] = 0;
+        buffer[pos_atual+2] = 0;
+        buffer[pos_atual+3] = 0;
+        if(write_sector(sector_cluster,buffer)){free(buffer);return -1;}
+    }
+    
+    free(buffer);
+    return 0;
+
+
+}
     
 FILE2 open2 (char *filename) {
     
