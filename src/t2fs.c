@@ -186,11 +186,14 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	
 	unsigned int i;
 	for (i = 0; i < numClustersToAllocate; i++) {
-	    //OccupyFreeCluster();
+	    DWORD newCluster = OccupyFreeCluster();
+	    UpdateFatEntry(lastCluster, newCluster);
+	    lastCluster = newCluster;
 	}
-	
-	
-	
+
+	// Marca último cluster como EOF.
+	UpdateFatEntry(lastCluster, 0xFFFFFFFF);
+		
     } else {
 	finalFilesize = fileRecord->bytesFileSize;
     }
