@@ -1,7 +1,7 @@
 #include "../include/aux.h"
 
 
-char workingDir[MAX_PATH_SIZE] = "/dir1\0";
+char workingDir[MAX_PATH_SIZE] = "/\0";
 
 int EraseEntry(char* path,char* name)
 {

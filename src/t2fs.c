@@ -29,7 +29,8 @@ int handDirCont = 0;
 
 int main(int argc, char *argv[]){
     
-
+   
+    
 
     return 0;
 }
@@ -38,20 +39,83 @@ int main(int argc, char *argv[]){
 int identify2 (char *name, int size);
 
 
-FILE2 create2 (char *filename);
+FILE2 create2 (char *filename)
+{
+
+	
+	
+    char* path = malloc(MAX_PATH_SIZE);
+    char* name = malloc(51);
+    DividePathAndFile(filename, path, name);
+    DWORD dir_cluster = FindFile(path);
+    free(path);
+    if(dir_cluster == -1) {free(name);return -1;}
+    if(NextCluster(dir_cluster) == 0xFFFFFFFE) {free(name);return -1;} //corrompido
+    if(FindFile(filename) != -1) //nome de dir/arquivo ja existente
+    {
+        struct t2fs_record* entrada = SearchEntradas(dir_cluster, name); 
+        if(entrada->TypeVal != TYPEVAL_REGULAR ) {free(entrada);free(name); return -1;}
+        free(entrada);
+	if(delete2(filename)) {free(name);return -1;}    
+    }
+    
+    //define a entrada do novo arquivo
+    BYTE* entrada = malloc(sizeof(struct t2fs_record));
+    entrada[0] = TYPEVAL_REGULAR;
+    int i = 0;
+    while(name[i] != '\0')
+        {entrada[i+1] = name[i]; i++;}
+    free(name);
+    int j;
+    for(j = i;j<51;j++)entrada[j+1] = '\0';
+       
+	//bytesFileSize
+    entrada[52] = 0;
+    entrada[53] = 0;
+    entrada[54] = 0;
+    entrada[55] = 0;
+        //ClusterFileSize
+    entrada[56] = 0X01;
+    entrada[57] = 0X00;
+    entrada[58] = 0X00;
+    entrada[59] = 0X00;    
+        //FirstCluster
+    DWORD clusterfree = OccupyFreeCluster();//entrada FAT
+    entrada[60] = clusterfree;
+    entrada[61] =(clusterfree/16)/16;
+    entrada[62] = ((((clusterfree/16)/16)/16)/16);
+    entrada[63] =((((((clusterfree/16)/16)/16)/16)/16)/16);        
+    
+    //escreve a entrada no dir pai
+    if(WriteInEmptyEntry(dir_cluster,entrada) == -1){free(entrada);return -1;}
+    
+    free(entrada);
+    int handle = open2(filename);
+    
+    
+    return handle;
+
+}
 
 
 int delete2 (char *filename);
     
 FILE2 open2 (char *filename) {
     
-    int cluster = FindFile(filename);
-     if(cluster == -1) return -1; //arquivo não encontrado
-     if(NextCluster(cluster) == 0xFFFFFFFE) return -1; //corrompido
 
-    struct t2fs_record* entrada = SearchEntradas(cluster, filename);
+    char* path = malloc(MAX_PATH_SIZE);
+    char* name = malloc(51);
+    DividePathAndFile(filename, path, name);
+    DWORD cluster = FindFile(path);
+    free(path);
+    if(cluster == -1) {free(name);return -1;} //arquivo não encontrado
+     if(NextCluster(cluster) == 0xFFFFFFFE) {free(name);return -1;} //corrompido
+
+
+    struct t2fs_record* entrada = SearchEntradas(cluster, name);
+    free(name);
     if(entrada == NULL) return -1;
-
+    
     int i = 0;
 
     while(FilesHandle[i].file_data != NULL){
@@ -152,16 +216,18 @@ int read2 (FILE2 handle, char *buffer, int size) {
 
 
 int write2 (FILE2 handle, char *buffer, int size) {
+
     struct FilesOpen filesOpen = FilesHandle[handle];
     struct t2fs_record *fileRecord = filesOpen.file_data;
     struct t2fs_superbloco superblock = ReadSuperbloco();
 
     unsigned int numSectorsToWrite = (size / SECTOR_SIZE) + (size % SECTOR_SIZE != 0);
     DWORD fileFirstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
-    
+
     BYTE *firstSectorBuffer = malloc(sizeof(BYTE) * SECTOR_SIZE);
     BYTE *lastSectorBuffer = malloc(sizeof(BYTE) * SECTOR_SIZE);
     
+
     DWORD currentPointerSector = ((fileFirstSector * SECTOR_SIZE) + filesOpen.CP) / SECTOR_SIZE;
     
     unsigned int bytesWritten = 0;
