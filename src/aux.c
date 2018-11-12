@@ -357,7 +357,7 @@ struct t2fs_record* SearchEntradas(DWORD cluster,char name[51])
     int j = 3;
     int i = 3;
     
-    while(strcmp(name,entrada->name)!=0 && file_size/64 > i)
+    while(entrada->name != TYPEVAL_INVALIDO && strcmp(name,entrada->name)!=0 && file_size/64 > i)
     {
         if(j>=bloco)  //acabou o bloco
             {
