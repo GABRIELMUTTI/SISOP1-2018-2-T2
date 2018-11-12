@@ -157,9 +157,9 @@ int write2 (FILE2 handle, char *buffer, int size) {
     unsigned int numSectorsToWrite = (size / SECTOR_SIZE) + (size % SECTOR_SIZE != 0);
     DWORD fileFirstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
     
-    char *firstSectorBuffer = malloc(sizeof(char) * SECTOR_SIZE);
-    char *lastSectorBuffer = malloc(sizeof(char) * SECTOR_SIZE);
-
+    BYTE *firstSectorBuffer = malloc(sizeof(BYTE) * SECTOR_SIZE);
+    BYTE *lastSectorBuffer = malloc(sizeof(BYTE) * SECTOR_SIZE);
+    
     DWORD currentPointerSector = ((fileFirstSector * SECTOR_SIZE) + filesOpen.CP) / SECTOR_SIZE;
     
     unsigned int bytesWritten = 0;
@@ -176,7 +176,6 @@ int write2 (FILE2 handle, char *buffer, int size) {
 
     
     if (finalFilesize > fileRecord->bytesFileSize) {
-	unsigned int sizeDifference = finalFilesize = fileRecord->bytesFileSize;
 	unsigned int clusterSize = SECTOR_SIZE * superblock.SectorsPerCluster;
 	unsigned int numAllocatedClusters = (fileRecord->bytesFileSize / clusterSize) + (fileRecord->bytesFileSize % clusterSize == 0);
 	unsigned int numClustersWithWrite = (finalFilesize / clusterSize) + (finalFilesize % clusterSize == 0);
@@ -203,7 +202,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
     
     // Escreve os setores do "meio".
     for (i = 1; i < numSectorsToWrite - 1; i++) {
-	status = write_sector(currentSector, buffer + (i * SECTOR_SIZE));
+	status = write_sector(currentSector, (BYTE*)(buffer) + (i * SECTOR_SIZE));
 
 	if (status != 0) {
 	    return -1;
@@ -268,11 +267,6 @@ int write2 (FILE2 handle, char *buffer, int size) {
 int truncate2 (FILE2 handle) {
 
     struct t2fs_superbloco superblock = ReadSuperbloco();
-    
-    if (size < 0) {
-	return -1;
-    }
-
     struct FilesOpen filesOpen = FilesHandle[handle];
     struct t2fs_record *fileRecord = filesOpen.file_data;
 
@@ -282,8 +276,6 @@ int truncate2 (FILE2 handle) {
     DWORD sectorCounter = (currentPointerSector % superblock.SectorsPerCluster) + 1;
 
     while (currentCluster != 0xFFFFFFFF) {
-
-
 	
 	sectorCounter = sectorCounter + 1;
 
@@ -292,11 +284,11 @@ int truncate2 (FILE2 handle) {
 	    currentCluster = NextCluster(currentCluster);
 	}
 
-	UpdateFATEntry(currentCluster, 0);
+	UpdateFatEntry(currentCluster, 0);
     }
 
     // Atualiza último cluster.
-    UpdateFATEntry(currentCluster, 0);
+    UpdateFatEntry(currentCluster, 0);
     
     fileRecord->bytesFileSize = filesOpen.CP;
     filesOpen.CP = filesOpen.CP - 1;
