@@ -53,7 +53,7 @@ FILE2 create2 (char *filename)
     DWORD dir_cluster = FindFile(path);
     free(path);
     if(dir_cluster == -1) {free(name);return -1;}
-    if(dir_cluster == 0xFFFFFFFE) {free(name);return -1;} //corrompido
+    if(NextCluster(dir_cluster) == 0xFFFFFFFE) {free(name);return -1;} //corrompido
     if(FindFile(filename) != -1) //nome de dir/arquivo ja existente
     {
         struct t2fs_record* entrada = SearchEntradas(dir_cluster, name); 
