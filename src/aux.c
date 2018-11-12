@@ -486,7 +486,7 @@ int UpdateFatEntry(unsigned int entry, DWORD value) {
     DWORD *buffer = malloc(sizeof(DWORD) * SECTOR_SIZE / 4);
     if (buffer == 0) { return -1; }
 
-    if (read_sector(entrySector, buffer)) {
+    if (read_sector(entrySector, (BYTE*)(buffer))) {
 	free(buffer);
 	return -1;
     }
@@ -494,7 +494,7 @@ int UpdateFatEntry(unsigned int entry, DWORD value) {
     unsigned int entryIndex = entry % (SECTOR_SIZE / 4);
     buffer[entryIndex] = value;
 
-    if (write_sector(entrySector, buffer)) {
+    if (write_sector(entrySector, (BYTE*)(buffer))) {
 	free(buffer);
 	return -1;
     }
@@ -522,7 +522,7 @@ DWORD FindLastCluster(DWORD firstCluster)
 
     do {
 	
-	if (read_sector(entry, buffer) != 0) {
+	if (read_sector(entrySector, (BYTE*)(buffer)) != 0) {
 	    free(buffer);
 	    return -1;
 	}
