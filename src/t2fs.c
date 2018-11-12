@@ -205,6 +205,8 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	status = write_sector(currentSector, (BYTE*)(buffer) + (i * SECTOR_SIZE));
 
 	if (status != 0) {
+	    free(firstSectorBuffer);
+	    free(lastSectorBuffer);
 	    return -1;
 	}
 	
@@ -225,12 +227,16 @@ int write2 (FILE2 handle, char *buffer, int size) {
     unsigned int sizeWithoutCurrentPointer = (size + filesOpen.CP) % SECTOR_SIZE;
     if (filesOpen.CP % SECTOR_SIZE != 0) {
 	if (read_sector(currentPointerSector, firstSectorBuffer) != 0) {
+	    free(firstSectorBuffer);
+	    free(lastSectorBuffer);
 	    return -1;
 	}
 
 	memcpy(firstSectorBuffer, buffer + filesOpen.CP, SECTOR_SIZE - (filesOpen.CP % SECTOR_SIZE));
 
 	if (write_sector(currentPointerSector, firstSectorBuffer) != 0) {
+	    free(firstSectorBuffer);
+	    free(lastSectorBuffer);
 	    return -1;
 	}
 
@@ -243,12 +249,16 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	status = read_sector(currentSector, lastSectorBuffer);
 
 	if (status != 0) {
+	    free(firstSectorBuffer);
+	    free(lastSectorBuffer);
 	    return -1;
 	}
 
 	memcpy(lastSectorBuffer, buffer, sizeWithoutCurrentPointer);
 
 	if (write_sector(currentSector, lastSectorBuffer) != 0) {
+	    free(firstSectorBuffer);
+	    free(lastSectorBuffer);
 	    return -1;
 	}
 
