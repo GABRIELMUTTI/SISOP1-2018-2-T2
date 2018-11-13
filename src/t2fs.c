@@ -724,7 +724,60 @@ int closedir2 (DIR2 handle)
     return 0;
 }
 
+<<<<<<< HEAD
 int ln2(char *linkname, char *filename);
 
 
 
+=======
+int ln2(char *linkname, char *filename){
+
+    //checa se o original existe
+    DWORD cluster = FindFile(filename); 
+    if(cluster == -1) return -1; //arquivo não encontrado
+
+    //checa se o path onde o link será criado é válido
+    char* path = malloc(MAX_PATH_SIZE);
+    char* name = malloc(51);
+    DividePathAndFile(linkname, path, name);
+    DWORD cluster = FindFile(path);
+    free(path);
+    if(cluster == -1) {free(name);return -1;} //path não encontrado
+
+    
+    if(linkname[0] == '/') //absoluto
+        strcpy(workingDir,linkname);
+    else
+    {
+        if(linkname[1] == '.')  // relativo pai
+        {
+            while(strlen(workingDir) > 1 && workingDir[strlen(workingDir)-1] == '/') //tira qualquer '/' do final
+                workingDir[strlen(workingDir)-1] = '\0';
+            while(strlen(workingDir) > 1 && workingDir[strlen(workingDir)-1] != '/') //pega path do pai
+                workingDir[strlen(workingDir)-1] = '\0';
+            
+            if(strlen(workingDir) == 1)
+                strcat(workingDir,linkname+3);
+            else
+                strcat(workingDir,linkname+2);
+        }
+        else  //relativo CWD
+        {
+            while(strlen(workingDir) > 1 && workingDir[strlen(workingDir)-1] == '/') //tira qualquer '/' do final
+                workingDir[strlen(workingDir)-1] = '\0';
+            strcat(workingDir,linkname+1);//copia tirando o '.'
+                
+        }
+    }
+    
+    
+    //define a entrada do novo link
+    BYTE* entrada = malloc(64);
+    entrada[0] = TYPEVAL_LINK;
+    int i;
+    for(i=0;i<51;i++)entrada[i+1] = name[i];
+    free(name);
+
+
+}
+>>>>>>> [#17] starts ln2 function
