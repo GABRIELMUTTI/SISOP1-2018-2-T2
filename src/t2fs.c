@@ -633,8 +633,10 @@ int chdir2 (char *pathname)
         {
             while(strlen(workingDir) > 1 && workingDir[strlen(workingDir)-1] == '/') //tira qualquer '/' do final
                 workingDir[strlen(workingDir)-1] = '\0';
-            strcat(workingDir,pathname2+1);//copia tirando o '.'
-                
+            if(pathname2[0] == '.')
+		strcat(workingDir,pathname2+1);//copia tirando o '.'
+            else
+		strcat(workingDir,pathname2);
         }
     }
     free(pathname2);
