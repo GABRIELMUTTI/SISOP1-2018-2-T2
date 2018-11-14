@@ -30,7 +30,8 @@ struct FilesOpen FilesHandle[MAX_HANDLE] = {{0}};
 
 int main(int argc, char *argv[]){
   
-   
+
+    
 
     return 0;
 }
@@ -105,18 +106,28 @@ FILE2 create2 (char *filename)
 
 int delete2 (char *filename)
 {
+    char* link = malloc(MAX_PATH_SIZE);
+    char* filename2 = malloc(MAX_PATH_SIZE);
+    int iflink = checkiflink(filename,link);
+    if(iflink == -1) {free(link);return -1;}
+    else
+        if(iflink)
+            strcpy(filename2,link);
+        else
+            strcpy(filename2,filename);
+    free(link);
 
     //VERIFICA SE EXISTE
     char* path = malloc(MAX_PATH_SIZE);
     char* name = malloc(51);
-    DividePathAndFile(filename, path, name);
+    DividePathAndFile(filename2, path, name);
    
     DWORD dir_cluster = FindFile(path);
     if(dir_cluster == -1) {free(path);free(name);return -1;}
    
     if(NextCluster(dir_cluster) == 0xFFFFFFFE) {free(path);free(name);return -1;} //corrompido
-    if(FindFile(filename) == -1){free(path);free(name);return -1;}   //nome de arquivo nao existente
-    
+    if(FindFile(filename2) == -1){free(path);free(name);return -1;}   //nome de arquivo nao existente
+    free(filename2);
     //Verifica se arquivo regular
     struct t2fs_record* entrada = SearchEntradas(dir_cluster, name); 
     if(entrada->TypeVal != TYPEVAL_REGULAR ) {free(path);free(entrada);free(name); return -1;}
@@ -172,10 +183,21 @@ int delete2 (char *filename)
     
 FILE2 open2 (char *filename) {
     
+    char* link = malloc(MAX_PATH_SIZE);
+    char* filename2 = malloc(MAX_PATH_SIZE);
+    int iflink = checkiflink(filename,link);
+    if(iflink == -1) {free(link);return -1;}
+    else
+        if(iflink)
+            strcpy(filename2,link);
+        else
+            strcpy(filename2,filename);
+    free(link);
 
     char* path = malloc(MAX_PATH_SIZE);
     char* name = malloc(51);
-    DividePathAndFile(filename, path, name);
+    DividePathAndFile(filename2, path, name);
+    free(filename2);
     DWORD cluster = FindFile(path);
     free(path);
     if(cluster == -1) {free(name);return -1;} //arquivo não encontrado
@@ -516,7 +538,19 @@ int mkdir2 (char *pathname){
    
 int rmdir2 (char *pathname)
 {
-    DWORD cluster = FindFile(pathname);
+
+    char* link = malloc(MAX_PATH_SIZE);
+    char* pathname2 = malloc(MAX_PATH_SIZE);
+    int iflink = checkiflink(pathname,link);
+    if(iflink == -1) {free(link);return -1;}
+    else
+        if(iflink)
+            strcpy(pathname2,link);
+        else
+            strcpy(pathname2,pathname);
+    free(link);
+
+    DWORD cluster = FindFile(pathname2);
     if(cluster == -1) return -1;//ERROR LOOKING FOR
     if(NextCluster(cluster) == 0xFFFFFFFE) return -1; //corrompido
     if(!CheckIfDirAndEmpty(cluster)) return -1;// not empty or not a dir
@@ -524,7 +558,8 @@ int rmdir2 (char *pathname)
     //APAGA ENTRADA
     char* path = malloc(MAX_PATH_SIZE);
     char* name = malloc(51);
-    DividePathAndFile(pathname, path, name);  
+    DividePathAndFile(pathname2, path, name);
+    free(pathname2);  
     EraseEntry(path,name);
     free(path);
     free(name);
@@ -557,7 +592,18 @@ int rmdir2 (char *pathname)
 
 int chdir2 (char *pathname)
 {
-    DWORD cluster = FindFile(pathname); 
+    char* link = malloc(MAX_PATH_SIZE);
+    char* pathname2 = malloc(MAX_PATH_SIZE);
+    int iflink = checkiflink(pathname,link);
+    if(iflink == -1) {free(link);return -1;}
+    else
+        if(iflink)
+            strcpy(pathname2,link);
+        else
+            strcpy(pathname2,pathname);
+    free(link);
+    
+    DWORD cluster = FindFile(pathname2); 
     if(cluster == -1) return -1; //DIR DOES NOT EXIST
     if(NextCluster(cluster) == 0xFFFFFFFE) return -1; //corrompido
     BYTE* buffer = malloc(256);
@@ -565,11 +611,13 @@ int chdir2 (char *pathname)
     if(buffer[0] != TYPEVAL_DIRETORIO || buffer[1] != '.')
         {free(buffer);return -1;} //NOT A DIR
     free(buffer);
-    if(pathname[0] == '/') //absoluto
-        strcpy(workingDir,pathname);
+    
+    
+    if(pathname2[0] == '/') //absoluto
+        strcpy(workingDir,pathname2);
     else
     {
-        if(pathname[1] == '.')  // relativo pai
+        if(pathname2[1] == '.')  // relativo pai
         {
             while(strlen(workingDir) > 1 && workingDir[strlen(workingDir)-1] == '/') //tira qualquer '/' do final
                 workingDir[strlen(workingDir)-1] = '\0';
@@ -577,18 +625,21 @@ int chdir2 (char *pathname)
                 workingDir[strlen(workingDir)-1] = '\0';
             
             if(strlen(workingDir) == 1)
-                strcat(workingDir,pathname+3);
+                strcat(workingDir,pathname2+3);
             else
-                strcat(workingDir,pathname+2);
+                strcat(workingDir,pathname2+2);
         }
         else  //relativo CWD
         {
             while(strlen(workingDir) > 1 && workingDir[strlen(workingDir)-1] == '/') //tira qualquer '/' do final
                 workingDir[strlen(workingDir)-1] = '\0';
-            strcat(workingDir,pathname+1);//copia tirando o '.'
-                
+            if(pathname2[0] == '.')
+		strcat(workingDir,pathname2+1);//copia tirando o '.'
+            else
+		strcat(workingDir,pathname2);
         }
     }
+    free(pathname2);
     
     return 0;
 
@@ -607,7 +658,19 @@ int getcwd2 (char *pathname, int size)
 
 DIR2 opendir2 (char *pathname)
 {
-    DWORD file_cluster = FindFile(pathname);
+    char* link = malloc(MAX_PATH_SIZE);
+    char* pathname2 = malloc(MAX_PATH_SIZE);
+    int iflink = checkiflink(pathname,link);
+    if(iflink == -1) {free(link);return -1;}
+    else
+        if(iflink)
+            strcpy(pathname2,link);
+        else
+            strcpy(pathname2,pathname);
+    free(link);
+    
+    DWORD file_cluster = FindFile(pathname2);
+    free(pathname2);
     if(file_cluster == -1) return -1; //ERROR
     if(NextCluster(file_cluster) == 0xFFFFFFFE) return -1; //corrompido
     int i=0;

@@ -6,6 +6,11 @@
 
 #define MAX_PATH_SIZE 255
 
+
+//verifica se eh um link, se for copia o path para o pathnameNew
+//retorna 0 se nao for, 1 se for e -1 se der algum erro
+int checkiflink(char* pathnameOriginal, char* pathnameNew);
+
 //apaga a entrada de name no dir path
 int EraseEntry(char* path,char* name);
 

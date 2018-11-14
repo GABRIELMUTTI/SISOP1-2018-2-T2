@@ -1,7 +1,56 @@
 #include "../include/aux.h"
 
 
+
+
 char workingDir[MAX_PATH_SIZE] = "/\0";
+
+
+int checkiflink(char* pathnameOriginal, char* pathnameNew)
+{
+    DWORD file_cluster = FindFile(pathnameOriginal);
+    if(file_cluster == -1) return -1; //ERROR
+    if(NextCluster(file_cluster) == 0xFFFFFFFE) return -1; //corrompido
+
+    //pega dir
+    char* path = malloc(MAX_PATH_SIZE);
+    char* name = malloc(51);
+    DividePathAndFile(pathnameOriginal, path, name);
+    DWORD dir_cluster = FindFile(path);
+    
+    
+    
+    if(dir_cluster == -1) {free(name);return -1;}
+    if(NextCluster(dir_cluster) == 0xFFFFFFFE) {free(name);return -1;} //corrompido
+    
+    //pega entrada
+    struct t2fs_record* entrada = SearchEntradas(dir_cluster,name);
+    free(name);
+    if(entrada == NULL) return -1;
+    //testa se e link 
+    if(entrada->TypeVal != TYPEVAL_LINK) {free(entrada);return 0;}
+    free(entrada);
+    //pega o path de verdade
+    DWORD sector = SetorLogico_ClusterDados(file_cluster);
+    BYTE* buffer = malloc(256);
+    if(read_sector(sector,buffer)) {free(buffer); return -1;}
+    
+    int i = 0;
+    while(buffer[i] != '\0')
+    {
+        pathnameNew[i] = buffer[i];
+        i++;
+    }
+    pathnameNew[i] = buffer[i];
+    free(buffer);
+    
+    
+    return 1;
+     
+
+
+
+}
 
 int EraseEntry(char* path,char* name)
 {
@@ -180,6 +229,7 @@ void DividePathAndFile(char *pathname,char *path, char *name)
    int k;
    int n;
    int fim = 0;
+   path[0] = '\0';
    while(1)
    {    
        while(pathname[j+i] != '/' )
@@ -189,6 +239,7 @@ void DividePathAndFile(char *pathname,char *path, char *name)
             i++;
             
        }
+       if(pathname[j+i+1]=='\0' && fim==0) break;
        if(fim)break; //End path
        name[i] = '/';
        n=0;
@@ -226,13 +277,17 @@ int FindFile(char *pathname)
                 free(path1);
                 free(name2);
                 cluster = FindFile(path2);
+                if(pathname[2] == '/')
+                    i+=2;
+                else
+                    i++;
                 free(path2);
-                i+=2;           
+                           
           }
           else //relativo current
          {  
                 if(pathname[0] == '.') // relativo ex: ./dir
-                    i++;
+                    {if(pathname[1] == '/') i++;}
                 else                   // relativo ex:  dir
                     i = 0;
                 char* path = malloc(MAX_PATH_SIZE);
