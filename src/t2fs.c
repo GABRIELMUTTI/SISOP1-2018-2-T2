@@ -724,60 +724,49 @@ int closedir2 (DIR2 handle)
     return 0;
 }
 
-<<<<<<< HEAD
-int ln2(char *linkname, char *filename);
-
-
-
-=======
 int ln2(char *linkname, char *filename){
 
     //checa se o original existe
+    char* file_path = malloc(MAX_PATH_SIZE);
+    char* file_name = malloc(51);
+    DividePathAndFile(filename, file_path, file_name);
     DWORD cluster = FindFile(filename); 
     if(cluster == -1) return -1; //arquivo não encontrado
 
     //checa se o path onde o link será criado é válido
-    char* path = malloc(MAX_PATH_SIZE);
-    char* name = malloc(51);
-    DividePathAndFile(linkname, path, name);
-    DWORD cluster = FindFile(path);
-    free(path);
-    if(cluster == -1) {free(name);return -1;} //path não encontrado
+    char* link_path = malloc(MAX_PATH_SIZE);
+    char* link_name = malloc(51);
+    DividePathAndFile(linkname, link_path, link_name);
+    DWORD cluster = FindFile(link_path);
+    free(link_path);
+    if(cluster == -1) {free(link_name);return -1;} //path não encontrado
 
-    
-    if(linkname[0] == '/') //absoluto
-        strcpy(workingDir,linkname);
-    else
-    {
-        if(linkname[1] == '.')  // relativo pai
-        {
-            while(strlen(workingDir) > 1 && workingDir[strlen(workingDir)-1] == '/') //tira qualquer '/' do final
-                workingDir[strlen(workingDir)-1] = '\0';
-            while(strlen(workingDir) > 1 && workingDir[strlen(workingDir)-1] != '/') //pega path do pai
-                workingDir[strlen(workingDir)-1] = '\0';
-            
-            if(strlen(workingDir) == 1)
-                strcat(workingDir,linkname+3);
-            else
-                strcat(workingDir,linkname+2);
-        }
-        else  //relativo CWD
-        {
-            while(strlen(workingDir) > 1 && workingDir[strlen(workingDir)-1] == '/') //tira qualquer '/' do final
-                workingDir[strlen(workingDir)-1] = '\0';
-            strcat(workingDir,linkname+1);//copia tirando o '.'
-                
-        }
-    }
-    
-    
     //define a entrada do novo link
-    BYTE* entrada = malloc(64);
+    BYTE* entrada = malloc(sizeof(struct t2fs_record));
     entrada[0] = TYPEVAL_LINK;
-    int i;
-    for(i=0;i<51;i++)entrada[i+1] = name[i];
-    free(name);
+    int i = 0;
+    while(link_name[i] != '\0')
+        {entrada[i+1] = link_name[i]; i++;}
+    free(link_name);
+    int j;
+    for(j = i;j<51;j++)entrada[j+1] = '\0';
+
+        //bytesFileSize
+   DWORD bytesFileSize = strlen(linkname);
+   entrada[52] = bytesFileSize;
+   entrada[53] =(bytesFileSize/16)/16;
+   entrada[54] = ((((bytesFileSize/16)/16)/16)/16);
+   entrada[55] =((((((bytesFileSize/16)/16)/16)/16)/16)/16); 
+        //ClusterFileSize
+   entrada[56] = 0X01;
+   entrada[57] = 0X00;
+   entrada[58] = 0X00;
+   entrada[59] = 0X00;
+   DWORD clusterfree = OccupyFreeCluster();//entrada FAT
+   entrada[60] = clusterfree;
+   entrada[61] =(clusterfree/16)/16;
+   entrada[62] = ((((clusterfree/16)/16)/16)/16);
+   entrada[63] =((((((clusterfree/16)/16)/16)/16)/16)/16);
 
 
 }
->>>>>>> [#17] starts ln2 function
