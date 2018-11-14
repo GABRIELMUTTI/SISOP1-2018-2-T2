@@ -206,7 +206,7 @@ void DividePathAndFile(char *pathname,char *path, char *name)
 
 int FindFile(char *pathname)
 {
-    if(pathname[0]=='\0') return -1;
+    if(pathname[0]=='\0') return FindFile(workingDir);
     struct t2fs_superbloco superbloco  = ReadSuperbloco();
     int cluster;
     char name[51];
