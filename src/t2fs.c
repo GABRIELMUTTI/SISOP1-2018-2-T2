@@ -6,6 +6,7 @@
 extern char workingDir[MAX_PATH_SIZE];
 
 
+#define MAX_HANDLE  10
 struct DirsOpen {
     
     DIR2 handle;
@@ -21,14 +22,14 @@ struct FilesOpen {
     int CP;
 };
 
-struct DirsOpen DirsHandle[10];
-struct FilesOpen FilesHandle[10] = {{0}};
+struct DirsOpen DirsHandle[MAX_HANDLE];
+struct FilesOpen FilesHandle[MAX_HANDLE] = {{0}};
 
 
-int handDirCont = 0;
+
 
 int main(int argc, char *argv[]){
-    
+  
    
     
 
@@ -56,7 +57,7 @@ FILE2 create2 (char *filename)
         struct t2fs_record* entrada = SearchEntradas(dir_cluster, name); 
         if(entrada->TypeVal != TYPEVAL_REGULAR ) {free(entrada);free(name); return -1;}
         free(entrada);
-	if(delete2(filename)) {free(name);return -1;}    
+	    if(delete2(filename)) {free(name);return -1;}    
     }
     
     //define a entrada do novo arquivo
@@ -118,10 +119,10 @@ FILE2 open2 (char *filename) {
     
     int i = 0;
 
-    while(FilesHandle[i].file_data != NULL){
+    while(i < MAX_HANDLE && FilesHandle[i].file_data != NULL){
         i++;
     }
-
+    if(i == MAX_HANDLE) return -1;
     FilesHandle[i] = (struct FilesOpen){.handle = i, .file_data = entrada, .CP = 0};
 
     return i;
@@ -540,11 +541,16 @@ DIR2 opendir2 (char *pathname)
     DWORD file_cluster = FindFile(pathname);
     if(file_cluster == -1) return -1; //ERROR
     if(NextCluster(file_cluster) == 0xFFFFFFFE) return -1; //corrompido
+    int i=0;
     
-    DirsHandle[handDirCont] = (struct DirsOpen){.handle = handDirCont,.first_cluster = file_cluster, .CE = 0}; 
+    while(i < MAX_HANDLE && DirsHandle[i].first_cluster != 0)
+        i++;
+    
+    if(i == MAX_HANDLE) return -1;
+    DirsHandle[i] = (struct DirsOpen){.handle = i,.first_cluster = file_cluster, .CE = 0}; 
     
     
-    return handDirCont++;
+    return i;
     
 }
 
@@ -579,7 +585,14 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry)
 }
 
 
-int closedir2 (DIR2 handle);
+int closedir2 (DIR2 handle)
+{
+    DirsHandle[handle] = (struct DirsOpen){.handle = -1,.first_cluster = 0, .CE = 0};
 
+    return 0;
+}
 
 int ln2(char *linkname, char *filename);
+
+
+
