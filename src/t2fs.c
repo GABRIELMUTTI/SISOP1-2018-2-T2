@@ -104,10 +104,10 @@ int delete2 (char *filename)
     char* path = malloc(MAX_PATH_SIZE);
     char* name = malloc(51);
     DividePathAndFile(filename, path, name);
-    printf("%s\n",path);
+   
     DWORD dir_cluster = FindFile(path);
     if(dir_cluster == -1) {free(path);free(name);return -1;}
-    printf("ALOOOOOO\n");
+   
     if(NextCluster(dir_cluster) == 0xFFFFFFFE) {free(path);free(name);return -1;} //corrompido
     if(FindFile(filename) == -1){free(path);free(name);return -1;}   //nome de arquivo nao existente
     
