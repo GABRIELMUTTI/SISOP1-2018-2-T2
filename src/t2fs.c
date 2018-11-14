@@ -36,8 +36,13 @@ int main(int argc, char *argv[]){
 }
 
 
-int identify2 (char *name, int size);
-
+int identify2 (char *name, int size){
+	
+	if(strncpy(name, "Felipe Flores - 274712.\nGabriel Mutti - 261583.\nTatiane Sequerra Stivelman - 243681\n", size) != NULL)
+		return 0;
+	else
+		return -1;
+}
 
 FILE2 create2 (char *filename)
 {
