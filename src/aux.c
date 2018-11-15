@@ -3,7 +3,7 @@
 
 
 
-char workingDir[MAX_PATH_SIZE] = "/\0";
+char workingDir[MAX_PATH_SIZE] = "/dir1\0";
 
 
 //verifica se pathnameOriginal eh um link, se for copia o path para o pathnameNew
@@ -11,12 +11,8 @@ char workingDir[MAX_PATH_SIZE] = "/\0";
 int checkiflink(char* pathnameOriginal, char* pathnameNew)
 {
     DWORD file_cluster = FindFile(pathnameOriginal);
-    printf("LINK 0: %s\n",pathnameOriginal);
-    printf("LINK 0: %d\n",FindFile("y.txt"));
-    printf("LINK 0: %d\n",FindFile("dir24"));
-    printf("LINK 0: %d\n",FindFile("dir25"));
+
     if(file_cluster == -1) return -1; //ERROR
-    printf("LINK 1\n");
     if(NextCluster(file_cluster) == 0xFFFFFFFE) return -1; //corrompido
     
     //pega dir

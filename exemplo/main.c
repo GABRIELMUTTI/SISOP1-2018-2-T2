@@ -414,11 +414,11 @@ void tst_chdir(char *src) {
 	
 	printf ("Teste do chdir2()\n");
 	
-    err = mkdir2(src);
-    if (err<0) {
-        printf ("Error: Mkdir %s, err=%d\n", src, err);
-        return;
-    }
+    //err = mkdir2(src);
+    //if (err<0) {
+    //    printf ("Error: Mkdir %s, err=%d\n", src, err);
+     //   return;
+   // }
 	
 	err=chdir2(src);
     if (err<0) {
@@ -515,6 +515,7 @@ int main()
     char *token;
     int i,n;
     int flagAchou, flagEncerrar;
+    
 
     printf ("Testing for T2FS - v 2018.1.2\n");
     //token = strtok("who"," \t");
