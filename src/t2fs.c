@@ -313,7 +313,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
     struct FilesOpen filesOpen = FilesHandle[handle];
     struct t2fs_record *fileRecord = filesOpen.file_data;
     struct t2fs_superbloco superblock = ReadSuperbloco();
-
+    
     unsigned int numSectorsToWrite = (size / SECTOR_SIZE) + (size % SECTOR_SIZE != 0);
     DWORD fileFirstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
 
@@ -321,32 +321,45 @@ int write2 (FILE2 handle, char *buffer, int size) {
     BYTE *lastSectorBuffer = malloc(sizeof(BYTE) * SECTOR_SIZE);
     
 
-    DWORD currentPointerSector = ((fileFirstSector * SECTOR_SIZE) + filesOpen.CP) / SECTOR_SIZE;
-    
+    DWORD currentPointerSector = FindFileOffsetSector(fileRecord, filesOpen.CP);
     unsigned int bytesWritten = 0;
-
+    
     DWORD currentSector = currentPointerSector;
-    DWORD currentCluster = currentPointerSector / superblock.SectorsPerCluster;
-    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
-    unsigned int sectorCounter = 0;
+    DWORD currentCluster = (currentSector - superblock.DataSectorStart) / superblock.SectorsPerCluster;
+    
+    if (NextCluster(currentCluster) == 0xFFFFFFFE) { return -1; } //corrompido
+    unsigned int sectorCounter = currentPointerSector % superblock.SectorsPerCluster;
     int status;
     
-
-    
     // Aloca clusters se faltar espaço.
-    unsigned int finalFilesize = filesOpen.CP + size;
+    unsigned int finalFilesize;
+    if (filesOpen.CP == fileRecord->bytesFileSize) {
+	finalFilesize = fileRecord->bytesFileSize + size;
+    } else {
+	if (filesOpen.CP + size > fileRecord->bytesFileSize) {
+	    finalFilesize = fileRecord->bytesFileSize + ((filesOpen.CP + size) - fileRecord->bytesFileSize);
+	} else {
+	    finalFilesize = fileRecord->bytesFileSize;
+	}
+    }
     
-    if (finalFilesize > fileRecord->bytesFileSize) {
+     if (finalFilesize > fileRecord->bytesFileSize) {
 	unsigned int clusterSize = SECTOR_SIZE * superblock.SectorsPerCluster;
-	unsigned int numAllocatedClusters = (fileRecord->bytesFileSize / clusterSize) + (fileRecord->bytesFileSize % clusterSize == 0);
-	unsigned int numClustersWithWrite = (finalFilesize / clusterSize) + (finalFilesize % clusterSize == 0);
-	int numClustersToAllocate = numClustersWithWrite - numAllocatedClusters;
+	unsigned int numAllocatedClusters = fileRecord->clustersFileSize;
 
+	unsigned int numClustersWithWrite;
+	if (finalFilesize != 0) {
+	    numClustersWithWrite = (finalFilesize / clusterSize) + (finalFilesize % clusterSize != 0);
+	} else {
+	    numClustersWithWrite = 1;
+	}
+
+	int numClustersToAllocate = numClustersWithWrite - numAllocatedClusters;
 	DWORD lastCluster = FindLastCluster(fileRecord->firstCluster);
-	
+
 	int i;
 	for (i = 0; i < numClustersToAllocate; i++) {
-	    DWORD newCluster = OccupyFreeCluster();
+	    int newCluster = OccupyFreeCluster();
 	    UpdateFatEntry(lastCluster, newCluster);
 	    lastCluster = newCluster;
 	}
@@ -357,7 +370,6 @@ int write2 (FILE2 handle, char *buffer, int size) {
     } else {
 	finalFilesize = fileRecord->bytesFileSize;
     }
-
     
     // Escreve o primeiro setor, lendo ele antes se o current pointer não estiver no começo do setor.
     unsigned int sizeWithoutCurrentPointer = (size + filesOpen.CP) % SECTOR_SIZE;
@@ -366,7 +378,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	if (read_sector(currentPointerSector, firstSectorBuffer) != 0) {
 	    free(firstSectorBuffer);
 	    free(lastSectorBuffer);
-	    return -1;
+	    return -2;
 	}
 
 	unsigned int bufferCopySize;
@@ -381,7 +393,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	if (write_sector(currentPointerSector, firstSectorBuffer) != 0) {
 	    free(firstSectorBuffer);
 	    free(lastSectorBuffer);
-	    return -1;
+	    return -3;
 	}
 
 	bytesWritten = bytesWritten + bufferCopySize;
@@ -389,30 +401,40 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	if (write_sector(currentPointerSector, buffer) != 0) {
 	    free(firstSectorBuffer);
 	    free(lastSectorBuffer);
-	    return -1;
+	    return -4;
 	}
 
 	bytesWritten = bytesWritten + SECTOR_SIZE;
+    }
+
+    sectorCounter++;
+    currentSector++;
+	
+    if (sectorCounter >= superblock.SectorsPerCluster) {
+	currentCluster = NextCluster(currentCluster);
+	if(NextCluster(currentCluster) == 0xFFFFFFFE) return -5; //corrompido
+	sectorCounter = 0;
     }
 
     
     unsigned int i;
     // Escreve os setores do "meio".
     for (i = 1; i < numSectorsToWrite - 1; i++) {
-	status = write_sector(currentSector, (BYTE*)(buffer) + (i * SECTOR_SIZE));
 
-	if (status != 0) {
+	if (write_sector(currentSector, (BYTE*)(buffer) + (i * SECTOR_SIZE)) != 0) {
 	    free(firstSectorBuffer);
 	    free(lastSectorBuffer);
-	    return -1;
+	    return -6;
 	}
 	
-	sectorCounter = sectorCounter + 1;
+	sectorCounter++;
+	currentSector++;
 	bytesWritten = bytesWritten + SECTOR_SIZE;
-
+	
 	if (sectorCounter >= superblock.SectorsPerCluster) {
 	    currentCluster = NextCluster(currentCluster);
-	    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
+
+	    if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -7; } //corrompido
 	    sectorCounter = 0;
 	}
 
@@ -422,22 +444,36 @@ int write2 (FILE2 handle, char *buffer, int size) {
     }
     
     // Lê e depois escreve se o final da escrita não completar um setor.
-     if (sizeWithoutCurrentPointer % SECTOR_SIZE != 0 && numSectorsToWrite > 1) {
-	 if (read_sector(currentSector, lastSectorBuffer) != 0) {
-	     free(firstSectorBuffer);
-	     free(lastSectorBuffer);
-	     return -1;
-	 }
-
-	 memcpy(lastSectorBuffer, buffer + ((numSectorsToWrite - 1) * SECTOR_SIZE), sizeWithoutCurrentPointer % SECTOR_SIZE);
+     if (numSectorsToWrite > 1) {
+	 int bufferOffset = ((numSectorsToWrite - 1) * SECTOR_SIZE);
 	 
-	 if (write_sector(currentSector, lastSectorBuffer) != 0) {
-	     free(firstSectorBuffer);
-	     free(lastSectorBuffer);
-	     return -1;
-	 }
+	 if (sizeWithoutCurrentPointer % SECTOR_SIZE != 0) {
+	     if (read_sector(currentSector, lastSectorBuffer) != 0) {
+		 free(firstSectorBuffer);
+		 free(lastSectorBuffer);
+		 return -8;
+	     }
 
-	 bytesWritten = bytesWritten + (sizeWithoutCurrentPointer % SECTOR_SIZE);
+	     memcpy(lastSectorBuffer, buffer + bufferOffset, sizeWithoutCurrentPointer % SECTOR_SIZE);
+	 
+	     if (write_sector(currentSector, lastSectorBuffer) != 0) {
+		 free(firstSectorBuffer);
+		 free(lastSectorBuffer);
+		 return -9;
+	     }
+
+	     bytesWritten = bytesWritten + (sizeWithoutCurrentPointer % SECTOR_SIZE);
+	 } else {
+	     if (write_sector(currentSector, buffer + bufferOffset) != 0) {
+		 free(firstSectorBuffer);
+		 free(lastSectorBuffer);
+		 return -10;
+	     }
+
+	     bytesWritten = bytesWritten + SECTOR_SIZE;
+	 }
+	 
+
     }
 
     free(firstSectorBuffer);

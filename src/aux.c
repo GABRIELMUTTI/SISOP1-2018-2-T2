@@ -204,6 +204,7 @@ int OccupyFreeCluster()
     if(read_sector(sector, buffer)) {free(buffer); return -1;}
     DWORD pos_atual = 0;
     DWORD clusterIndex = 0;
+
     while(1)
     {
         if(pos_atual >= 256) //fim do setor
@@ -217,6 +218,7 @@ int OccupyFreeCluster()
         pos_atual += 4;
         clusterIndex++;
     }
+
     buffer[pos_atual] = 0XFF;//ocupa o cluster
     buffer[pos_atual+1] = 0XFF;
     buffer[pos_atual+2] = 0XFF;
@@ -224,6 +226,7 @@ int OccupyFreeCluster()
     if(write_sector(sector,buffer)) {free(buffer); return -1;}
 
     free(buffer);
+
     return clusterIndex;
     
     
@@ -529,28 +532,28 @@ DWORD NextCluster(DWORD cluster_atual)
 DWORD FindFileOffsetSector(struct t2fs_record *fileRecord, DWORD offset) {
 
     struct t2fs_superbloco superblock = ReadSuperbloco();
-    unsigned int numOffsetSectors = offset / SECTOR_SIZE + (offset % SECTOR_SIZE == 0);
+    unsigned int numOffsetSectors = (offset / SECTOR_SIZE) + (offset % SECTOR_SIZE != 0);
     
     DWORD currentCluster = fileRecord->firstCluster;
     if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
     unsigned int sectorCounter = 0;
-    unsigned int offsetSectorCounter = 1;
+    unsigned int offsetSectorCounter = 0;
 
     // Acha o setor do offset nos outros clusters.
     while (offsetSectorCounter < numOffsetSectors && currentCluster != 0xFFFFFFFF) {
 			
-	offsetSectorCounter = offsetSectorCounter + 1;
-	sectorCounter = sectorCounter + 1;
+	offsetSectorCounter++;
+	sectorCounter++;
 	
 	if (sectorCounter >= superblock.SectorsPerCluster) {
+	    currentCluster = NextCluster(currentCluster);
+	    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -2; //corrompido
+	    
 	    sectorCounter = 0;
 	}
-	
-	currentCluster = NextCluster(currentCluster);
-	if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
     }
 
-    return SetorLogico_ClusterDados(currentCluster) + sectorCounter - 1;
+    return SetorLogico_ClusterDados(currentCluster) + sectorCounter;
 }
 
 //atualiza a fat com value
@@ -559,20 +562,20 @@ int UpdateFatEntry(unsigned int entry, DWORD value) {
 
     unsigned int entrySector = superblock.pFATSectorStart + (entry / (SECTOR_SIZE / superblock.SectorsPerCluster));
 
-    DWORD *buffer = malloc(sizeof(DWORD) * SECTOR_SIZE / 4);
+    DWORD *buffer = malloc(sizeof(DWORD) * SECTOR_SIZE / superblock.SectorsPerCluster);
     if (buffer == 0) { return -1; }
 
     if (read_sector(entrySector, (BYTE*)(buffer))) {
 	free(buffer);
-	return -1;
+	return -2;
     }
 
-    unsigned int entryIndex = entry % (SECTOR_SIZE / 4);
+    unsigned int entryIndex = entry % (SECTOR_SIZE / superblock.SectorsPerCluster);
     buffer[entryIndex] = value;
 
     if (write_sector(entrySector, (BYTE*)(buffer))) {
 	free(buffer);
-	return -1;
+	return -3;
     }
 
     free(buffer);
@@ -586,31 +589,31 @@ DWORD FindLastCluster(DWORD firstCluster)
     struct t2fs_superbloco superblock = ReadSuperbloco();
     unsigned int numEntriesPerSector = SECTOR_SIZE / 4;
     unsigned int entrySector = superblock.pFATSectorStart + (firstCluster / numEntriesPerSector);
-    
 
     DWORD *buffer = malloc(sizeof(DWORD) * SECTOR_SIZE);
-
+    
     // Não conseguiu alocar.
     if (buffer == 0) { return -1; }
-
     
-    DWORD currentCluster;
+    DWORD currentCluster = firstCluster;
+    DWORD lastCluster;
     unsigned int currentEntry = firstCluster;
 
     do {
+	lastCluster = currentCluster;
 	
 	if (read_sector(entrySector, (BYTE*)(buffer)) != 0) {
 	    free(buffer);
-	    return -1;
+	    return -2;
 	}
 
 	currentCluster = buffer[currentEntry];
-	
+	currentEntry = currentCluster;
+	entrySector = superblock.pFATSectorStart + (currentCluster / numEntriesPerSector);
     } while(currentCluster != 0xFFFFFFFF);
-	
 
     free(buffer);
-    return currentCluster;
+    return lastCluster;
 }
 
 
