@@ -490,24 +490,27 @@ int truncate2 (FILE2 handle) {
     struct t2fs_superbloco superblock = ReadSuperbloco();
     struct FilesOpen filesOpen = FilesHandle[handle];
     struct t2fs_record *fileRecord = filesOpen.file_data;
-
-    DWORD currentPointerSector = FindFileOffsetSector(fileRecord, filesOpen.CP);
-  
-    DWORD currentCluster = currentPointerSector / superblock.SectorsPerCluster;
-    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
-    DWORD sectorCounter = (currentPointerSector % superblock.SectorsPerCluster) + 1;
+    
+    DWORD currentPointerSector = FindFileOffsetSector(fileRecord, filesOpen.CP) + 1;
+    DWORD currentCluster = ((currentPointerSector - superblock.DataSectorStart) / superblock.SectorsPerCluster);
+    
+    if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -1; } //corrompido
+    DWORD sectorCounter = currentPointerSector % superblock.SectorsPerCluster;
+    DWORD lastCluster;
 
     while (currentCluster != 0xFFFFFFFF) {
-	
-	sectorCounter = sectorCounter + 1;
+	    
+	sectorCounter++;
 
 	if (sectorCounter >= superblock.SectorsPerCluster) {
 	    sectorCounter = 0;
+	    lastCluster = currentCluster;
 	    currentCluster = NextCluster(currentCluster);
-	    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
+	    
+	    if(currentCluster == 0xFFFFFFFE) { return -2; } //corrompido
 	}
 
-	UpdateFatEntry(currentCluster, 0);
+	UpdateFatEntry(lastCluster, 0);
     }
 
     // Atualiza último cluster.
