@@ -101,6 +101,7 @@ int delete2 (char *filename)
     char* link = malloc(MAX_PATH_SIZE);
     char* filename2 = malloc(MAX_PATH_SIZE);
     int iflink = checkiflink(filename,link);
+    printf("CHEGOU 0\n");
     if(iflink == -1) {free(link);return -1;}
     else
         if(iflink)
@@ -108,30 +109,34 @@ int delete2 (char *filename)
         else
             strcpy(filename2,filename);
     free(link);
-
+    
     //VERIFICA SE EXISTE
     char* path = malloc(MAX_PATH_SIZE);
     char* name = malloc(51);
     DividePathAndFile(filename2, path, name);
    
     DWORD dir_cluster = FindFile(path);
+    printf("CHEGOU 1\n");
     if(dir_cluster == -1) {free(path);free(name);return -1;}
-   
+   printf("CHEGOU 2\n");
     if(NextCluster(dir_cluster) == 0xFFFFFFFE) {free(path);free(name);return -1;} //corrompido
+    printf("CHEGOU 3\n");
     if(FindFile(filename2) == -1){free(path);free(name);return -1;}   //nome de arquivo nao existente
     free(filename2);
     //Verifica se arquivo regular
     struct t2fs_record* entrada = SearchEntradas(dir_cluster, name); 
+    printf("CHEGOU 4\n");
     if(entrada->TypeVal != TYPEVAL_REGULAR ) {free(path);free(entrada);free(name); return -1;}
     int firstCluster = entrada->firstCluster;
     free(entrada);
+	printf("CHEGOU 5\n");
 	if(NextCluster(dir_cluster) == 0xFFFFFFFE){free(path);free(name);return -1;}
-	
+	printf("CHEGOU 6\n");
 	//APAGA ENTRADA
 	if(EraseEntry(path,name)) {free(path);free(name);return -1;}
     free(path);
     free(name);
-    
+    printf("CHEGOU 7\n");
 	int cluster = firstCluster;
 	
 	//APAGA ARQUIVO
@@ -613,7 +618,7 @@ int chdir2 (char *pathname)
         strcpy(workingDir,pathname2);
     else
     {
-        if(pathname2[1] == '.')  // relativo pai
+        if(pathname2[0] == '.' && pathname2[1] == '.')  // relativo pai
         {
             while(strlen(workingDir) > 1 && workingDir[strlen(workingDir)-1] == '/') //tira qualquer '/' do final
                 workingDir[strlen(workingDir)-1] = '\0';

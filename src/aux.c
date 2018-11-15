@@ -11,9 +11,14 @@ char workingDir[MAX_PATH_SIZE] = "/\0";
 int checkiflink(char* pathnameOriginal, char* pathnameNew)
 {
     DWORD file_cluster = FindFile(pathnameOriginal);
+    printf("LINK 0: %s\n",pathnameOriginal);
+    printf("LINK 0: %d\n",FindFile("y.txt"));
+    printf("LINK 0: %d\n",FindFile("dir24"));
+    printf("LINK 0: %d\n",FindFile("dir25"));
     if(file_cluster == -1) return -1; //ERROR
+    printf("LINK 1\n");
     if(NextCluster(file_cluster) == 0xFFFFFFFE) return -1; //corrompido
-
+    
     //pega dir
     char* path = malloc(MAX_PATH_SIZE);
     char* name = malloc(51);
@@ -276,7 +281,7 @@ int FindFile(char *pathname)
         cluster = superbloco.RootDirCluster;
     else 
     {
-          if(pathname[1] == '.')//relativo pai 
+          if(pathname[0] == '.' && pathname[1] == '.')//relativo pai 
           {
                 char* path1 = malloc(MAX_PATH_SIZE);
                 strcpy(path1,workingDir);
