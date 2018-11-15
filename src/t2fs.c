@@ -458,38 +458,6 @@ int truncate2 (FILE2 handle) {
     DWORD currentPointerSector = FindFileOffsetSector(fileRecord, filesOpen.CP);
   
     DWORD currentCluster = currentPointerSector / superblock.SectorsPerCluster;
-    DWORD sectorCounter = (currentPointerSector % superblock.SectorsPerCluster) + 1;
-
-    while (currentCluster != 0xFFFFFFFF) {
-	
-	sectorCounter = sectorCounter + 1;
-
-	if (sectorCounter >= superblock.SectorsPerCluster) {
-	    sectorCounter = 0;
-	    currentCluster = NextCluster(currentCluster);
-	}
-
-	UpdateFatEntry(currentCluster, 0);
-    }
-
-    // Atualiza último cluster.
-    UpdateFatEntry(currentCluster, 0);
-    
-    fileRecord->bytesFileSize = filesOpen.CP;
-    filesOpen.CP = filesOpen.CP - 1;
-
-    return 0;
-}
-    
-int truncate2 (FILE2 handle) {
-
-    struct t2fs_superbloco superblock = ReadSuperbloco();
-    struct FilesOpen filesOpen = FilesHandle[handle];
-    struct t2fs_record *fileRecord = filesOpen.file_data;
-
-    DWORD currentPointerSector = FindFileOffsetSector(fileRecord, filesOpen.CP);
-  
-    DWORD currentCluster = currentPointerSector / superblock.SectorsPerCluster;
     if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
     DWORD sectorCounter = (currentPointerSector % superblock.SectorsPerCluster) + 1;
 
