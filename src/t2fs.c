@@ -740,6 +740,8 @@ int ln2(char *linkname, char *filename){
     DWORD cluster = FindFile(link_path);
     free(link_path);
     if(cluster == -1) {free(link_name);return -1;} //path não encontrado
+    //checa se já não existe outro link com o mesmo nome
+    if(FindFile(linkname) != -1) //nome de dir/link ja existente
 
     //define a entrada do novo link
     BYTE* entrada = malloc(sizeof(struct t2fs_record));
@@ -767,6 +769,55 @@ int ln2(char *linkname, char *filename){
    entrada[61] =(clusterfree/16)/16;
    entrada[62] = ((((clusterfree/16)/16)/16)/16);
    entrada[63] =((((((clusterfree/16)/16)/16)/16)/16)/16);
+
+   char* workingDirAux;
+   char* buffer;
+
+   strcpy(workingDirAux, workingDir);
+
+   if(linkname[0] == '/'){ //absoluto
+   i = 0;
+        while(link_path[i] != '\0')
+        {buffer[i] = link_path[i]; i++;}
+   }
+    else
+    {
+        if(linkname[1] == '.')  // relativo pai
+        {
+            while(strlen(workingDirAux) > 1 && workingDirAux[strlen(workingDirAux)-1] == '/') //tira qualquer '/' do final
+                workingDirAux[strlen(workingDirAux)-1] = '\0';
+            while(strlen(workingDirAux) > 1 && workingDirAux[strlen(workingDirAux)-1] != '/') //pega path do pai
+                workingDirAux[strlen(workingDirAux)-1] = '\0';
+            
+            if(strlen(workingDirAux) == 1)
+                strcat(workingDirAux,linkname+3);
+            else
+                strcat(workingDirAux,linkname+2);
+        }
+        else  //relativo CWD
+        {
+            while(strlen(workingDirAux) > 1 && workingDirAux[strlen(workingDirAux)-1] == '/') //tira qualquer '/' do final
+                workingDirAux[strlen(workingDirAux)-1] = '\0';
+            if(linkname[0] == '.')
+		strcat(workingDirAux,linkname+1);//copia tirando o '.'
+            else
+		strcat(workingDirAux,linkname);
+        }
+         i = 0;
+        while(link_path[i] != '\0')
+        {buffer[i] = link_path[i]; i++;}
+    }
+    free(linkname);
+
+    struct t2fs_superbloco superbloco  = ReadSuperbloco();
+
+    DWORD sector_cluster = clusterfree/64 + superbloco.pFATSectorStart;
+    
+    if(read_sector(sector_cluster,buffer)){free(buffer);return -1;}
+    if(write_sector(sector_cluster,buffer)){free(buffer);return -1;}
+    
+    free(buffer);
+    return 0;
 
 
 }
