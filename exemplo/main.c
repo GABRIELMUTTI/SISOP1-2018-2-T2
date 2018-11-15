@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "t2fs.h"
+#include "../include/t2fs.h"
 
 
 void cmdMan(void);

@@ -28,14 +28,6 @@ struct FilesOpen FilesHandle[MAX_HANDLE] = {{0}};
 
 
 
-int main(int argc, char *argv[]){
-  
-
-    
-
-    return 0;
-}
-
 
 int identify2 (char *name, int size){
 	
@@ -183,6 +175,7 @@ int delete2 (char *filename)
     
 FILE2 open2 (char *filename) {
     
+    
     char* link = malloc(MAX_PATH_SIZE);
     char* filename2 = malloc(MAX_PATH_SIZE);
     int iflink = checkiflink(filename,link);
@@ -193,6 +186,7 @@ FILE2 open2 (char *filename) {
         else
             strcpy(filename2,filename);
     free(link);
+  
 
     char* path = malloc(MAX_PATH_SIZE);
     char* name = malloc(51);
@@ -201,19 +195,21 @@ FILE2 open2 (char *filename) {
     DWORD cluster = FindFile(path);
     free(path);
     if(cluster == -1) {free(name);return -1;} //arquivo não encontrado
+   
      if(NextCluster(cluster) == 0xFFFFFFFE) {free(name);return -1;} //corrompido
 
 
     struct t2fs_record* entrada = SearchEntradas(cluster, name);
     free(name);
     if(entrada == NULL) return -1;
-    
+
     int i = 0;
 
     while(i < MAX_HANDLE && FilesHandle[i].file_data != NULL){
         i++;
     }
     if(i == MAX_HANDLE) return -1;
+
     FilesHandle[i] = (struct FilesOpen){.handle = i, .file_data = entrada, .CP = 0};
 
     return i;
@@ -724,7 +720,7 @@ int closedir2 (DIR2 handle)
     return 0;
 }
 
-int ln2(char *linkname, char *filename);
+int ln2(char *linkname, char *filename){return -1;}
 
 
 
