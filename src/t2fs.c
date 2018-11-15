@@ -732,6 +732,8 @@ int ln2(char *linkname, char *filename){
     DividePathAndFile(filename, file_path, file_name);
     DWORD cluster = FindFile(filename); 
     if(cluster == -1) return -1; //arquivo não encontrado
+    free(file_name);
+    free(file_path);
 
     //checa se o path onde o link será criado é válido
     char* link_path = malloc(MAX_PATH_SIZE);
@@ -769,6 +771,8 @@ int ln2(char *linkname, char *filename){
    entrada[61] =(clusterfree/16)/16;
    entrada[62] = ((((clusterfree/16)/16)/16)/16);
    entrada[63] =((((((clusterfree/16)/16)/16)/16)/16)/16);
+
+   free(entrada)
 
    char* workingDirAux;
    char* buffer;
