@@ -727,13 +727,8 @@ int closedir2 (DIR2 handle)
 int ln2(char *linkname, char *filename){
 
     //checa se o original existe
-    char* file_path = malloc(MAX_PATH_SIZE);
-    char* file_name = malloc(51);
-    DividePathAndFile(filename, file_path, file_name);
     DWORD cluster = FindFile(filename); 
     if(cluster == -1) return -1; //arquivo não encontrado
-    free(file_name);
-    free(file_path);
 
     //checa se o path onde o link será criado é válido
     char* link_path = malloc(MAX_PATH_SIZE);
@@ -743,7 +738,7 @@ int ln2(char *linkname, char *filename){
     free(link_path);
     if(cluster == -1) {free(link_name);return -1;} //path não encontrado
     //checa se já não existe outro link com o mesmo nome
-    if(FindFile(linkname) != -1) //nome de dir/link ja existente
+    if(FindFile(linkname) != -1) return -1; //nome de dir/link ja existente
 
     //define a entrada do novo link
     BYTE* entrada = malloc(sizeof(struct t2fs_record));
@@ -772,7 +767,7 @@ int ln2(char *linkname, char *filename){
    entrada[62] = ((((clusterfree/16)/16)/16)/16);
    entrada[63] =((((((clusterfree/16)/16)/16)/16)/16)/16);
 
-   free(entrada)
+   free(entrada);
 
    char* workingDirAux;
    char* buffer;
