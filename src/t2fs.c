@@ -499,11 +499,14 @@ int truncate2 (FILE2 handle) {
     struct FilesOpen filesOpen = FilesHandle[handle];
     struct t2fs_record *fileRecord = filesOpen.file_data;
 
-    DWORD currentPointerSector = FindFileOffsetSector(fileRecord, filesOpen.CP);
-  
-    DWORD currentCluster = (currentPointerSector - superblock.DataSectorStart) / superblock.SectorsPerCluster;
+    
+    DWORD currentPointerSector = FindFileOffsetSector(fileRecord, filesOpen.CP) + 1;
+    DWORD currentCluster = ((currentPointerSector - superblock.DataSectorStart) / superblock.SectorsPerCluster);
+    
     if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -1; } //corrompido
     DWORD sectorCounter = (currentPointerSector % superblock.SectorsPerCluster) + 1;
+    DWORD lastCluster;
+
 
     if (sectorCounter >= superblock.SectorsPerCluster) {
 	sectorCounter = 0;
@@ -512,17 +515,20 @@ int truncate2 (FILE2 handle) {
 	currentCluster = NextCluster(currentCluster);
     }
     while (currentCluster != 0xFFFFFFFF) {
-	
+
 	sectorCounter++;
 
 	if (sectorCounter >= superblock.SectorsPerCluster) {
 	    sectorCounter = 0;
-	    
-	    if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -2; }  //corrompido
+
+	    lastCluster = currentCluster;
 	    currentCluster = NextCluster(currentCluster);
+	    
+	    if(currentCluster == 0xFFFFFFFE) { return -2; } //corrompido
+
 	}
 
-	UpdateFatEntry(currentCluster, 0);
+	UpdateFatEntry(lastCluster, 0);
     }
 
     // Atualiza último cluster.
