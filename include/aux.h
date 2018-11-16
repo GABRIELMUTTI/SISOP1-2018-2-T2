@@ -64,5 +64,9 @@ DWORD FindFileOffsetSector(struct t2fs_record *fileRecord, DWORD offset);
 //atualiza a fat com value
 int UpdateFatEntry(unsigned int entry, DWORD value);
 
+int UpdateDirEntry(DWORD directory_cluster, struct t2fs_record* record);
+
+int GetFileEntry(DWORD cluster,char name[51]);
+
 //acha o ultimo cluster de um arquivo
 DWORD FindLastCluster(DWORD firstCluster);
