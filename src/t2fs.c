@@ -769,8 +769,8 @@ int ln2(char *linkname, char *filename){
 
    free(entrada);
 
-   char* workingDirAux;
-   char* buffer;
+   char* workingDirAux = malloc(MAX_PATH_SIZE);
+   char* buffer = malloc(MAX_PATH_SIZE);
 
    strcpy(workingDirAux, workingDir);
 
@@ -778,17 +778,18 @@ int ln2(char *linkname, char *filename){
    i = 0;
         while(link_path[i] != '\0')
         {buffer[i] = link_path[i]; i++;}
+        buffer[i] = '\0';
    }
     else
     {
-        if(linkname[1] == '.')  // relativo pai
+        if(linkname[0] == '.' && linkname[1] == '.')  // relativo pai
         {
             while(strlen(workingDirAux) > 1 && workingDirAux[strlen(workingDirAux)-1] == '/') //tira qualquer '/' do final
                 workingDirAux[strlen(workingDirAux)-1] = '\0';
             while(strlen(workingDirAux) > 1 && workingDirAux[strlen(workingDirAux)-1] != '/') //pega path do pai
                 workingDirAux[strlen(workingDirAux)-1] = '\0';
             
-            if(strlen(workingDirAux) == 1)
+            if(strlen(workingDirAux) == 1 && strlen(linkname) != 2)
                 strcat(workingDirAux,linkname+3);
             else
                 strcat(workingDirAux,linkname+2);
@@ -805,14 +806,12 @@ int ln2(char *linkname, char *filename){
          i = 0;
         while(link_path[i] != '\0')
         {buffer[i] = link_path[i]; i++;}
+        buffer[i] = '\0';
     }
     free(linkname);
 
-    struct t2fs_superbloco superbloco  = ReadSuperbloco();
-
-    DWORD sector_cluster = clusterfree/64 + superbloco.pFATSectorStart;
+    DWORD sector_cluster = SetorLogico_ClusterDados(clusterfree);
     
-    if(read_sector(sector_cluster,buffer)){free(buffer);return -1;}
     if(write_sector(sector_cluster,buffer)){free(buffer);return -1;}
     
     free(buffer);
