@@ -317,10 +317,18 @@ int read2 (FILE2 handle, char *buffer, int size) {
 int write2 (FILE2 handle, char *buffer, int size) {
 
     struct FilesOpen filesOpen = FilesHandle[handle];
+
+    if (filesOpen.file_data == NULL) {
+	return -11;
+    }
+    
     struct t2fs_record *fileRecord = filesOpen.file_data;
     struct t2fs_superbloco superblock = ReadSuperbloco();
+
+    unsigned int sizeWithoutCurrentPointer = (size + filesOpen.CP) % SECTOR_SIZE;
+    unsigned int currentPointerSectorDistance = filesOpen.CP % SECTOR_SIZE;
     
-    unsigned int numSectorsToWrite = (size / SECTOR_SIZE) + (size % SECTOR_SIZE != 0);
+    unsigned int numSectorsToWrite = ((size + sizeWithoutCurrentPointer) / SECTOR_SIZE) + ((size + sizeWithoutCurrentPointer) % SECTOR_SIZE != 0);
     DWORD fileFirstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
 
     BYTE *firstSectorBuffer = malloc(sizeof(BYTE) * SECTOR_SIZE);
@@ -332,8 +340,12 @@ int write2 (FILE2 handle, char *buffer, int size) {
     
     DWORD currentSector = currentPointerSector;
     DWORD currentCluster = (currentSector - superblock.DataSectorStart) / superblock.SectorsPerCluster;
-    
-    if (NextCluster(currentCluster) == 0xFFFFFFFE) { return -1; } //corrompido
+
+    if (NextCluster(currentCluster) == 0xFFFFFFFE) {
+	free(firstSectorBuffer);
+	free(lastSectorBuffer);
+	return -1;
+    }
     unsigned int sectorCounter = currentPointerSector % superblock.SectorsPerCluster;
     int status;
     
@@ -354,11 +366,14 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	unsigned int numAllocatedClusters = fileRecord->clustersFileSize;
 
 	unsigned int numClustersWithWrite;
+
 	if (finalFilesize != 0) {
 	    numClustersWithWrite = (finalFilesize / clusterSize) + (finalFilesize % clusterSize != 0);
 	} else {
 	    numClustersWithWrite = 1;
 	}
+
+	fileRecord->clustersFileSize = numClustersWithWrite;
 
 	int numClustersToAllocate = numClustersWithWrite - numAllocatedClusters;
 	DWORD lastCluster = FindLastCluster(fileRecord->firstCluster);
@@ -376,10 +391,8 @@ int write2 (FILE2 handle, char *buffer, int size) {
     } else {
 	finalFilesize = fileRecord->bytesFileSize;
     }
-    
+
     // Escreve o primeiro setor, lendo ele antes se o current pointer não estiver no começo do setor.
-    unsigned int sizeWithoutCurrentPointer = (size + filesOpen.CP) % SECTOR_SIZE;
-    unsigned int currentPointerSectorDistance = filesOpen.CP % SECTOR_SIZE;
     if (currentPointerSectorDistance != 0 || size < SECTOR_SIZE) {
 	if (read_sector(currentPointerSector, firstSectorBuffer) != 0) {
 	    free(firstSectorBuffer);
@@ -393,8 +406,9 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	} else {
 	    bufferCopySize = size;
 	}
-	
-	memcpy(firstSectorBuffer + currentPointerSectorDistance, buffer, size);
+
+
+	memcpy(firstSectorBuffer + currentPointerSectorDistance, buffer, bufferCopySize);
 
 	if (write_sector(currentPointerSector, firstSectorBuffer) != 0) {
 	    free(firstSectorBuffer);
@@ -409,20 +423,23 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	    free(lastSectorBuffer);
 	    return -4;
 	}
-
+	
 	bytesWritten = bytesWritten + SECTOR_SIZE;
     }
-
+    
     sectorCounter++;
     currentSector++;
 	
     if (sectorCounter >= superblock.SectorsPerCluster) {
 	currentCluster = NextCluster(currentCluster);
-	if(NextCluster(currentCluster) == 0xFFFFFFFE) return -5; //corrompido
+	if(NextCluster(currentCluster) == 0xFFFFFFFE) {
+	    free(firstSectorBuffer);
+	    free(lastSectorBuffer);
+	    return -5;
+	}
 	sectorCounter = 0;
     }
 
-    
     unsigned int i;
     // Escreve os setores do "meio".
     for (i = 1; i < numSectorsToWrite - 1; i++) {
@@ -440,7 +457,12 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	if (sectorCounter >= superblock.SectorsPerCluster) {
 	    currentCluster = NextCluster(currentCluster);
 
-	    if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -7; } //corrompido
+	    if(NextCluster(currentCluster) == 0xFFFFFFFE) {
+		free(firstSectorBuffer);
+		free(lastSectorBuffer);
+		return -7;
+	    }
+	    
 	    sectorCounter = 0;
 	}
 
@@ -448,11 +470,11 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	    break;
 	}
     }
-    
+  
     // Lê e depois escreve se o final da escrita não completar um setor.
      if (numSectorsToWrite > 1) {
 	 int bufferOffset = ((numSectorsToWrite - 1) * SECTOR_SIZE);
-	 
+
 	 if (sizeWithoutCurrentPointer % SECTOR_SIZE != 0) {
 	     if (read_sector(currentSector, lastSectorBuffer) != 0) {
 		 free(firstSectorBuffer);
@@ -479,18 +501,21 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	     bytesWritten = bytesWritten + SECTOR_SIZE;
 	 }
 	 
+	 
+     }
+     
 
-    }
-
-    free(firstSectorBuffer);
-    free(lastSectorBuffer);
-
-    FilesHandle[handle].CP = filesOpen.CP + bytesWritten;
-    fileRecord->bytesFileSize = finalFilesize;
-
-    UpdateDirEntry(FilesHandle[handle].directory_cluster, FilesHandle[handle].file_data);
-	
-    return bytesWritten;
+     
+     free(firstSectorBuffer);
+     free(lastSectorBuffer);
+     
+     FilesHandle[handle].CP = filesOpen.CP + bytesWritten;
+     fileRecord->bytesFileSize = finalFilesize;
+     
+     
+     UpdateDirEntry(FilesHandle[handle].directory_cluster, FilesHandle[handle].file_data);
+     
+     return bytesWritten;
 }
     
 int truncate2 (FILE2 handle) {
@@ -499,11 +524,14 @@ int truncate2 (FILE2 handle) {
     struct FilesOpen filesOpen = FilesHandle[handle];
     struct t2fs_record *fileRecord = filesOpen.file_data;
 
-    DWORD currentPointerSector = FindFileOffsetSector(fileRecord, filesOpen.CP);
-  
-    DWORD currentCluster = (currentPointerSector - superblock.DataSectorStart) / superblock.SectorsPerCluster;
+    
+    DWORD currentPointerSector = FindFileOffsetSector(fileRecord, filesOpen.CP) + 1;
+    DWORD currentCluster = ((currentPointerSector - superblock.DataSectorStart) / superblock.SectorsPerCluster);
+    
     if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -1; } //corrompido
     DWORD sectorCounter = (currentPointerSector % superblock.SectorsPerCluster) + 1;
+    DWORD lastCluster;
+
 
     if (sectorCounter >= superblock.SectorsPerCluster) {
 	sectorCounter = 0;
@@ -512,17 +540,20 @@ int truncate2 (FILE2 handle) {
 	currentCluster = NextCluster(currentCluster);
     }
     while (currentCluster != 0xFFFFFFFF) {
-	
+
 	sectorCounter++;
 
 	if (sectorCounter >= superblock.SectorsPerCluster) {
 	    sectorCounter = 0;
-	    
-	    if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -2; }  //corrompido
+
+	    lastCluster = currentCluster;
 	    currentCluster = NextCluster(currentCluster);
+	    
+	    if(currentCluster == 0xFFFFFFFE) { return -2; } //corrompido
+
 	}
 
-	UpdateFatEntry(currentCluster, 0);
+	UpdateFatEntry(lastCluster, 0);
     }
 
     // Atualiza último cluster.
