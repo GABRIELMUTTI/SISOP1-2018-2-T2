@@ -18,6 +18,7 @@ struct DirsOpen {
 struct FilesOpen {
 
     DIR2 handle;
+    DWORD directory_cluster;
     struct t2fs_record *file_data;
     int CP;
 };
@@ -201,7 +202,7 @@ FILE2 open2 (char *filename) {
     free(path);
     if(cluster == -1) {free(name);return -1;} //arquivo não encontrado
    
-     if(NextCluster(cluster) == 0xFFFFFFFE) {free(name);return -1;} //corrompido
+    if(NextCluster(cluster) == 0xFFFFFFFE) {free(name);return -1;} //corrompido
 
 
     struct t2fs_record* entrada = SearchEntradas(cluster, name);
@@ -215,7 +216,7 @@ FILE2 open2 (char *filename) {
     }
     if(i == MAX_HANDLE) return -1;
 
-    FilesHandle[i] = (struct FilesOpen){.handle = i, .file_data = entrada, .CP = 0};
+    FilesHandle[i] = (struct FilesOpen){.handle = i, .directory_cluster = cluster, .file_data = entrada, .CP = 0};
 
     return i;
 
@@ -236,10 +237,11 @@ int read2 (FILE2 handle, char *buffer, int size) {
     struct t2fs_superbloco superbloco = ReadSuperbloco();
     struct t2fs_record *fileRecord = filesOpen.file_data;
 
+    if (NextCluster(fileRecord->firstCluster) == 0xFFFFFFFE) { return -1; } //corrompido
+    
     unsigned int currentPointSectorOffset = filesOpen.CP % SECTOR_SIZE;
-    unsigned int bufferBeginning = 0;
-    unsigned int bufferEnding = size;
-
+    unsigned int bufferBeginning = currentPointSectorOffset;
+   
     // Calcula o ceiling de size / SECTOR_SIZE.
     unsigned int numSectorsToRead = (size / SECTOR_SIZE) + ((size % SECTOR_SIZE) != 0);
     
@@ -251,11 +253,13 @@ int read2 (FILE2 handle, char *buffer, int size) {
 
   
     BYTE *tmpBuffer = malloc(sizeof(BYTE) * numSectorsToRead * SECTOR_SIZE);
-    if(NextCluster(fileRecord->firstCluster) == 0xFFFFFFFE) return -1; //corrompido
-    DWORD firstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
-    DWORD currentSector = (filesOpen.CP + (firstSector * SECTOR_SIZE)) / SECTOR_SIZE;
-    DWORD currentCluster = (currentSector / superbloco.SectorsPerCluster);
-    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
+    if (tmpBuffer == 0) { return -2; }
+    
+    DWORD currentSector = FindFileOffsetSector(fileRecord, filesOpen.CP);
+    DWORD currentCluster = ((currentSector - superbloco.DataSectorStart) / superbloco.SectorsPerCluster);
+    
+    if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -3; } //corrompido
+
     int reachedEndOfFile = 0;
     unsigned int sectorCounter = 0;
     unsigned int bytesRead = 0;
@@ -263,42 +267,44 @@ int read2 (FILE2 handle, char *buffer, int size) {
     
     for (i = 0; i < numSectorsToRead; i++)
     {
-	int status = read_sector(currentSector, tmpBuffer);
-
-	if (status != 0) {
-	    return -1;
+	if (read_sector(currentSector, tmpBuffer + (i * SECTOR_SIZE))) {
+	    free(tmpBuffer);
+	    return -4;
 	}
 
 	bytesRead = bytesRead + SECTOR_SIZE;
-
-
-	sectorCounter = sectorCounter + 1;
+	sectorCounter++;
 	
 	// Vai pro próximo cluster.
 	if (sectorCounter >= superbloco.SectorsPerCluster) {
+	    if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -5; } //corrompido
 	    currentCluster = NextCluster(currentCluster);
-	    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
+	    
 	    currentSector = SetorLogico_ClusterDados(currentCluster);
 	    sectorCounter = 0;
 	}
 
 	// Chegou no final do arquivo.
 	if (currentCluster == 0xFFFFFFFF) {
-	    reachedEndOfFile = 1;
 	    break;
 	}
 
     }
-    
-    memcpy(buffer, (tmpBuffer + bufferBeginning), bufferEnding);
-    free(tmpBuffer);
 
-    bytesRead = bytesRead - currentPointSectorOffset;
-
-    // Se chegou no final do arquivo, decrementa o excesso dos bytes lidos.
-    if (reachedEndOfFile == 1) {
-	bytesRead = bytesRead - (SECTOR_SIZE - (sizeWithoutCurrentPoint % SECTOR_SIZE));
+    unsigned int sizeCopy;
+    if (sizeWithoutCurrentPoint + filesOpen.CP <= fileRecord->bytesFileSize) {
+	sizeCopy = sizeWithoutCurrentPoint - filesOpen.CP;
+    } else {
+	sizeCopy = fileRecord->bytesFileSize - filesOpen.CP;
+	reachedEndOfFile = 1;
     }
+
+    if (sizeCopy > 0) {
+	memcpy(buffer, (tmpBuffer + bufferBeginning), sizeCopy);	
+    }
+    
+    free(tmpBuffer);
+    bytesRead = sizeCopy;
     
     FilesHandle[handle].CP = bytesRead +  FilesHandle[handle].CP;
     
@@ -481,7 +487,9 @@ int write2 (FILE2 handle, char *buffer, int size) {
 
     FilesHandle[handle].CP = filesOpen.CP + bytesWritten;
     fileRecord->bytesFileSize = finalFilesize;
-    
+
+    UpdateDirEntry(FilesHandle[handle].directory_cluster, FilesHandle[handle].file_data);
+	
     return bytesWritten;
 }
     
@@ -493,18 +501,25 @@ int truncate2 (FILE2 handle) {
 
     DWORD currentPointerSector = FindFileOffsetSector(fileRecord, filesOpen.CP);
   
-    DWORD currentCluster = currentPointerSector / superblock.SectorsPerCluster;
-    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
+    DWORD currentCluster = (currentPointerSector - superblock.DataSectorStart) / superblock.SectorsPerCluster;
+    if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -1; } //corrompido
     DWORD sectorCounter = (currentPointerSector % superblock.SectorsPerCluster) + 1;
 
+    if (sectorCounter >= superblock.SectorsPerCluster) {
+	sectorCounter = 0;
+	   
+	if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -2; }  //corrompido
+	currentCluster = NextCluster(currentCluster);
+    }
     while (currentCluster != 0xFFFFFFFF) {
 	
-	sectorCounter = sectorCounter + 1;
+	sectorCounter++;
 
 	if (sectorCounter >= superblock.SectorsPerCluster) {
 	    sectorCounter = 0;
+	    
+	    if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -2; }  //corrompido
 	    currentCluster = NextCluster(currentCluster);
-	    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
 	}
 
 	UpdateFatEntry(currentCluster, 0);
@@ -516,6 +531,10 @@ int truncate2 (FILE2 handle) {
     fileRecord->bytesFileSize = filesOpen.CP;
     filesOpen.CP = filesOpen.CP - 1;
 
+    if (UpdateDirEntry(FilesHandle[handle].directory_cluster, FilesHandle[handle].file_data) < 0) {
+	return -3;
+    }
+    
     return 0;
 }
    
@@ -525,9 +544,14 @@ int seek2 (FILE2 handle, DWORD offset) {
     struct t2fs_record *fileRecord = filesOpen.file_data;
     
     if (offset == -1) {
-	FilesHandle[handle].CP = fileRecord->bytesFileSize;
+	FilesHandle[handle].CP = 0;
     } else if (offset >= 0){
-	FilesHandle[handle].CP = offset;
+	if (offset >= fileRecord->bytesFileSize) {
+	    FilesHandle[handle].CP = fileRecord->bytesFileSize - 1;
+	} else {
+	    FilesHandle[handle].CP = offset;	    
+	}
+
 	
     // Deslocamento negativo gera um erro.
     } else {
