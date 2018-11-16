@@ -260,7 +260,6 @@ int read2 (FILE2 handle, char *buffer, int size) {
     
     if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -3; } //corrompido
 
-    int reachedEndOfFile = 0;
     unsigned int sectorCounter = 0;
     unsigned int bytesRead = 0;
     unsigned int i;
@@ -296,7 +295,6 @@ int read2 (FILE2 handle, char *buffer, int size) {
 	sizeCopy = sizeWithoutCurrentPoint - filesOpen.CP;
     } else {
 	sizeCopy = fileRecord->bytesFileSize - filesOpen.CP;
-	reachedEndOfFile = 1;
     }
 
     if (sizeCopy > 0) {
@@ -329,7 +327,6 @@ int write2 (FILE2 handle, char *buffer, int size) {
     unsigned int currentPointerSectorDistance = filesOpen.CP % SECTOR_SIZE;
     
     unsigned int numSectorsToWrite = ((size + sizeWithoutCurrentPointer) / SECTOR_SIZE) + ((size + sizeWithoutCurrentPointer) % SECTOR_SIZE != 0);
-    DWORD fileFirstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
 
     BYTE *firstSectorBuffer = malloc(sizeof(BYTE) * SECTOR_SIZE);
     BYTE *lastSectorBuffer = malloc(sizeof(BYTE) * SECTOR_SIZE);
@@ -347,7 +344,6 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	return -1;
     }
     unsigned int sectorCounter = currentPointerSector % superblock.SectorsPerCluster;
-    int status;
     
     // Aloca clusters se faltar espaço.
     unsigned int finalFilesize;
@@ -418,7 +414,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
 
 	bytesWritten = bytesWritten + bufferCopySize;
     } else {
-	if (write_sector(currentPointerSector, buffer) != 0) {
+	if (write_sector(currentPointerSector, (BYTE*)(buffer)) != 0) {
 	    free(firstSectorBuffer);
 	    free(lastSectorBuffer);
 	    return -4;
@@ -492,7 +488,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
 
 	     bytesWritten = bytesWritten + (sizeWithoutCurrentPointer % SECTOR_SIZE);
 	 } else {
-	     if (write_sector(currentSector, buffer + bufferOffset) != 0) {
+	     if (write_sector(currentSector, (BYTE*)(buffer + bufferOffset)) != 0) {
 		 free(firstSectorBuffer);
 		 free(lastSectorBuffer);
 		 return -10;

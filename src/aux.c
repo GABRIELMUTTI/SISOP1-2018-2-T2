@@ -616,8 +616,6 @@ DWORD FindLastCluster(DWORD firstCluster)
 
 int UpdateDirEntry(DWORD directory_cluster, struct t2fs_record *record)
 {
-    struct t2fs_superbloco superblock = ReadSuperbloco();
-    
     int entry = GetFileEntry(directory_cluster, record->name);
     if (entry < 0) { return -1; }
 
@@ -647,7 +645,7 @@ int UpdateDirEntry(DWORD directory_cluster, struct t2fs_record *record)
 //devolve a entrada do arquivo nome
 int GetFileEntry(DWORD cluster,char name[51])
 {
-    if(NextCluster(cluster) == 0xFFFFFFFE) return NULL; //corrompido
+    if(NextCluster(cluster) == 0xFFFFFFFE) return -1; //corrompido
      struct t2fs_superbloco superbloco  = ReadSuperbloco();
      float bloco = 256.0*superbloco.SectorsPerCluster/64.0;
      
@@ -672,7 +670,7 @@ int GetFileEntry(DWORD cluster,char name[51])
         if(j>=bloco)  //acabou o bloco
             {
                 cluster = NextCluster(cluster);
-                if (cluster == -1){free(entrada);return NULL;}// END OF FILE;
+                if (cluster == -1){free(entrada);return -1;}// END OF FILE;
                 if(NextCluster(cluster) == 0xFFFFFFFE) {free(entrada);return -3;} //corrompido
                 sector_first = SetorLogico_ClusterDados(cluster);
                 j = 0;
