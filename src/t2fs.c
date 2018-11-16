@@ -18,6 +18,7 @@ struct DirsOpen {
 struct FilesOpen {
 
     DIR2 handle;
+    DWORD directory_cluster;
     struct t2fs_record *file_data;
     int CP;
 };
@@ -201,7 +202,7 @@ FILE2 open2 (char *filename) {
     free(path);
     if(cluster == -1) {free(name);return -1;} //arquivo não encontrado
    
-     if(NextCluster(cluster) == 0xFFFFFFFE) {free(name);return -1;} //corrompido
+    if(NextCluster(cluster) == 0xFFFFFFFE) {free(name);return -1;} //corrompido
 
 
     struct t2fs_record* entrada = SearchEntradas(cluster, name);
@@ -215,7 +216,7 @@ FILE2 open2 (char *filename) {
     }
     if(i == MAX_HANDLE) return -1;
 
-    FilesHandle[i] = (struct FilesOpen){.handle = i, .file_data = entrada, .CP = 0};
+    FilesHandle[i] = (struct FilesOpen){.handle = i, .directory_cluster = cluster, .file_data = entrada, .CP = 0};
 
     return i;
 
@@ -486,7 +487,9 @@ int write2 (FILE2 handle, char *buffer, int size) {
 
     FilesHandle[handle].CP = filesOpen.CP + bytesWritten;
     fileRecord->bytesFileSize = finalFilesize;
-    
+
+    UpdateDirEntry(FilesHandle[handle].directory_cluster, FilesHandle[handle].file_data);
+	
     return bytesWritten;
 }
     
@@ -498,18 +501,25 @@ int truncate2 (FILE2 handle) {
 
     DWORD currentPointerSector = FindFileOffsetSector(fileRecord, filesOpen.CP);
   
-    DWORD currentCluster = currentPointerSector / superblock.SectorsPerCluster;
-    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
+    DWORD currentCluster = (currentPointerSector - superblock.DataSectorStart) / superblock.SectorsPerCluster;
+    if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -1; } //corrompido
     DWORD sectorCounter = (currentPointerSector % superblock.SectorsPerCluster) + 1;
 
+    if (sectorCounter >= superblock.SectorsPerCluster) {
+	sectorCounter = 0;
+	   
+	if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -2; }  //corrompido
+	currentCluster = NextCluster(currentCluster);
+    }
     while (currentCluster != 0xFFFFFFFF) {
 	
-	sectorCounter = sectorCounter + 1;
+	sectorCounter++;
 
 	if (sectorCounter >= superblock.SectorsPerCluster) {
 	    sectorCounter = 0;
+	    
+	    if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -2; }  //corrompido
 	    currentCluster = NextCluster(currentCluster);
-	    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
 	}
 
 	UpdateFatEntry(currentCluster, 0);
@@ -521,6 +531,10 @@ int truncate2 (FILE2 handle) {
     fileRecord->bytesFileSize = filesOpen.CP;
     filesOpen.CP = filesOpen.CP - 1;
 
+    if (UpdateDirEntry(FilesHandle[handle].directory_cluster, FilesHandle[handle].file_data) < 0) {
+	return -3;
+    }
+    
     return 0;
 }
    

@@ -444,8 +444,6 @@ struct t2fs_record* SearchEntradas(DWORD cluster,char name[51])
     }
     if(file_size/64 <= i) {free(entrada);return NULL;} //END OF FILE
     
-    
-    
     return entrada;
 
 
@@ -616,4 +614,74 @@ DWORD FindLastCluster(DWORD firstCluster)
     return lastCluster;
 }
 
+int UpdateDirEntry(DWORD directory_cluster, struct t2fs_record *record)
+{
+    struct t2fs_superbloco superblock = ReadSuperbloco();
+    
+    int entry = GetFileEntry(directory_cluster, record->name);
+    if (entry < 0) { return -1; }
 
+    DWORD entrySector = SetorLogico_ClusterDados(directory_cluster) + ((entry * 64) / SECTOR_SIZE);
+    unsigned int entriesPerSector = SECTOR_SIZE / 64;
+    
+    struct t2fs_record *buffer = malloc(sizeof(struct t2fs_record) * entriesPerSector);
+    if (buffer == 0) { return -2; }
+
+    if (read_sector(entrySector, (BYTE*)(buffer)) != 0) {
+	free(buffer);
+	return -3;
+    }
+
+    buffer[entry % entriesPerSector] = *record;
+    
+    if (write_sector(entrySector, (BYTE*)(buffer)) != 0) {
+	free(buffer);
+	return -4;
+    }
+
+    free(buffer);
+
+    return 0;
+}
+
+//devolve a entrada do arquivo nome
+int GetFileEntry(DWORD cluster,char name[51])
+{
+    if(NextCluster(cluster) == 0xFFFFFFFE) return NULL; //corrompido
+     struct t2fs_superbloco superbloco  = ReadSuperbloco();
+     float bloco = 256.0*superbloco.SectorsPerCluster/64.0;
+     
+     
+     DWORD sector_first = SetorLogico_ClusterDados(cluster);
+     
+     BYTE* buffer2 = malloc(SECTOR_SIZE);
+     //Get dir size
+     if(read_sector(sector_first ,buffer2)) {free(buffer2);return -1;} //ERROR
+     
+     DWORD file_size = buffer2[52] + buffer2[53]*16*16 + buffer2[54]*16*16*16*16 + buffer2[55]*16*16*16*16*16*16;
+     free(buffer2);
+     
+    struct t2fs_record* entrada = malloc(sizeof(struct t2fs_record));
+    if(ReadEntrada(sector_first, 2, entrada)){free(entrada);return -2;}
+
+    int j = 3;
+    int i = 3;
+    
+    while(entrada->TypeVal != TYPEVAL_INVALIDO && strcmp(name,entrada->name)!=0 && file_size/64 > i)
+    {
+        if(j>=bloco)  //acabou o bloco
+            {
+                cluster = NextCluster(cluster);
+                if (cluster == -1){free(entrada);return NULL;}// END OF FILE;
+                if(NextCluster(cluster) == 0xFFFFFFFE) {free(entrada);return -3;} //corrompido
+                sector_first = SetorLogico_ClusterDados(cluster);
+                j = 0;
+            }
+        if(ReadEntrada(sector_first, j, entrada)){free(entrada);return -4;}        
+         j++; 
+         i++; 
+    }
+    if(file_size/64 <= i) {free(entrada);return -5;} //END OF FILE
+    
+    return j - 1;
+}
