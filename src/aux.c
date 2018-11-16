@@ -532,7 +532,7 @@ DWORD NextCluster(DWORD cluster_atual)
 DWORD FindFileOffsetSector(struct t2fs_record *fileRecord, DWORD offset) {
 
     struct t2fs_superbloco superblock = ReadSuperbloco();
-    unsigned int numOffsetSectors = (offset / SECTOR_SIZE) + (offset % SECTOR_SIZE != 0);
+    unsigned int numOffsetSectors = offset / SECTOR_SIZE;
     
     DWORD currentCluster = fileRecord->firstCluster;
     if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido

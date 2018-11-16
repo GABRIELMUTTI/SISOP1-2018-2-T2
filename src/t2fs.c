@@ -236,10 +236,11 @@ int read2 (FILE2 handle, char *buffer, int size) {
     struct t2fs_superbloco superbloco = ReadSuperbloco();
     struct t2fs_record *fileRecord = filesOpen.file_data;
 
+    if (NextCluster(fileRecord->firstCluster) == 0xFFFFFFFE) { return -1; } //corrompido
+    
     unsigned int currentPointSectorOffset = filesOpen.CP % SECTOR_SIZE;
-    unsigned int bufferBeginning = 0;
-    unsigned int bufferEnding = size;
-
+    unsigned int bufferBeginning = currentPointSectorOffset;
+   
     // Calcula o ceiling de size / SECTOR_SIZE.
     unsigned int numSectorsToRead = (size / SECTOR_SIZE) + ((size % SECTOR_SIZE) != 0);
     
@@ -251,11 +252,13 @@ int read2 (FILE2 handle, char *buffer, int size) {
 
   
     BYTE *tmpBuffer = malloc(sizeof(BYTE) * numSectorsToRead * SECTOR_SIZE);
-    if(NextCluster(fileRecord->firstCluster) == 0xFFFFFFFE) return -1; //corrompido
-    DWORD firstSector = SetorLogico_ClusterDados(fileRecord->firstCluster);
-    DWORD currentSector = (filesOpen.CP + (firstSector * SECTOR_SIZE)) / SECTOR_SIZE;
-    DWORD currentCluster = (currentSector / superbloco.SectorsPerCluster);
-    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
+    if (tmpBuffer == 0) { return -2; }
+    
+    DWORD currentSector = FindFileOffsetSector(fileRecord, filesOpen.CP);
+    DWORD currentCluster = ((currentSector - superbloco.DataSectorStart) / superbloco.SectorsPerCluster);
+    
+    if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -3; } //corrompido
+
     int reachedEndOfFile = 0;
     unsigned int sectorCounter = 0;
     unsigned int bytesRead = 0;
@@ -263,42 +266,44 @@ int read2 (FILE2 handle, char *buffer, int size) {
     
     for (i = 0; i < numSectorsToRead; i++)
     {
-	int status = read_sector(currentSector, tmpBuffer);
-
-	if (status != 0) {
-	    return -1;
+	if (read_sector(currentSector, tmpBuffer + (i * SECTOR_SIZE))) {
+	    free(tmpBuffer);
+	    return -4;
 	}
 
 	bytesRead = bytesRead + SECTOR_SIZE;
-
-
-	sectorCounter = sectorCounter + 1;
+	sectorCounter++;
 	
 	// Vai pro próximo cluster.
 	if (sectorCounter >= superbloco.SectorsPerCluster) {
+	    if(NextCluster(currentCluster) == 0xFFFFFFFE) { return -5; } //corrompido
 	    currentCluster = NextCluster(currentCluster);
-	    if(NextCluster(currentCluster) == 0xFFFFFFFE) return -1; //corrompido
+	    
 	    currentSector = SetorLogico_ClusterDados(currentCluster);
 	    sectorCounter = 0;
 	}
 
 	// Chegou no final do arquivo.
 	if (currentCluster == 0xFFFFFFFF) {
-	    reachedEndOfFile = 1;
 	    break;
 	}
 
     }
-    
-    memcpy(buffer, (tmpBuffer + bufferBeginning), bufferEnding);
-    free(tmpBuffer);
 
-    bytesRead = bytesRead - currentPointSectorOffset;
-
-    // Se chegou no final do arquivo, decrementa o excesso dos bytes lidos.
-    if (reachedEndOfFile == 1) {
-	bytesRead = bytesRead - (SECTOR_SIZE - (sizeWithoutCurrentPoint % SECTOR_SIZE));
+    unsigned int sizeCopy;
+    if (sizeWithoutCurrentPoint + filesOpen.CP <= fileRecord->bytesFileSize) {
+	sizeCopy = sizeWithoutCurrentPoint - filesOpen.CP;
+    } else {
+	sizeCopy = fileRecord->bytesFileSize - filesOpen.CP;
+	reachedEndOfFile = 1;
     }
+
+    if (sizeCopy > 0) {
+	memcpy(buffer, (tmpBuffer + bufferBeginning), sizeCopy);	
+    }
+    
+    free(tmpBuffer);
+    bytesRead = sizeCopy;
     
     FilesHandle[handle].CP = bytesRead +  FilesHandle[handle].CP;
     
@@ -525,9 +530,14 @@ int seek2 (FILE2 handle, DWORD offset) {
     struct t2fs_record *fileRecord = filesOpen.file_data;
     
     if (offset == -1) {
-	FilesHandle[handle].CP = fileRecord->bytesFileSize;
+	FilesHandle[handle].CP = 0;
     } else if (offset >= 0){
-	FilesHandle[handle].CP = offset;
+	if (offset >= fileRecord->bytesFileSize) {
+	    FilesHandle[handle].CP = fileRecord->bytesFileSize - 1;
+	} else {
+	    FilesHandle[handle].CP = offset;	    
+	}
+
 	
     // Deslocamento negativo gera um erro.
     } else {
