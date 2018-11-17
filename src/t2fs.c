@@ -727,16 +727,16 @@ int closedir2 (DIR2 handle)
 int ln2(char *linkname, char *filename){
 
     //checa se o original existe
-    DWORD cluster = FindFile(filename); 
-    if(cluster == -1) return -1; //arquivo não encontrado
+     DWORD file_cluster = FindFile(filename); 
+    if(file_cluster == -1) return -1; //arquivo não encontrado
 
     //checa se o path onde o link será criado é válido
     char* link_path = malloc(MAX_PATH_SIZE);
     char* link_name = malloc(51);
     DividePathAndFile(linkname, link_path, link_name);
-    DWORD cluster = FindFile(link_path);
+    DWORD link_cluster = FindFile(link_path);
     free(link_path);
-    if(cluster == -1) {free(link_name);return -1;} //path não encontrado
+    if(link_cluster == -1) {free(link_name);return -1;} //path não encontrado
     //checa se já não existe outro link com o mesmo nome
     if(FindFile(linkname) != -1) return -1; //nome de dir/link ja existente
 
@@ -770,7 +770,7 @@ int ln2(char *linkname, char *filename){
    free(entrada);
 
    char* workingDirAux = malloc(MAX_PATH_SIZE);
-   char* buffer = malloc(MAX_PATH_SIZE);
+   unsigned char* buffer = malloc(MAX_PATH_SIZE);
 
    strcpy(workingDirAux, workingDir);
 
