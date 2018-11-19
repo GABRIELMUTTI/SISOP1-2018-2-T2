@@ -724,7 +724,98 @@ int closedir2 (DIR2 handle)
     return 0;
 }
 
-int ln2(char *linkname, char *filename);
+int ln2(char *linkname, char *filename){
+
+    //checa se o original existe
+     DWORD file_cluster = FindFile(filename); 
+    if(file_cluster == -1) return -1; //arquivo não encontrado
+
+    //checa se o path onde o link será criado é válido
+    char* link_path = malloc(MAX_PATH_SIZE);
+    char* link_name = malloc(51);
+    DividePathAndFile(linkname, link_path, link_name);
+    DWORD link_cluster = FindFile(link_path);
+    free(link_path);
+    if(link_cluster == -1) {free(link_name);return -1;} //path não encontrado
+    //checa se já não existe outro link com o mesmo nome
+    if(FindFile(linkname) != -1) return -1; //nome de dir/link ja existente
+
+    //define a entrada do novo link
+    BYTE* entrada = malloc(sizeof(struct t2fs_record));
+    entrada[0] = TYPEVAL_LINK;
+    int i = 0;
+    while(link_name[i] != '\0')
+        {entrada[i+1] = link_name[i]; i++;}
+    free(link_name);
+    int j;
+    for(j = i;j<51;j++)entrada[j+1] = '\0';
+
+        //bytesFileSize
+   DWORD bytesFileSize = strlen(linkname);
+   entrada[52] = bytesFileSize;
+   entrada[53] =(bytesFileSize/16)/16;
+   entrada[54] = ((((bytesFileSize/16)/16)/16)/16);
+   entrada[55] =((((((bytesFileSize/16)/16)/16)/16)/16)/16); 
+        //ClusterFileSize
+   entrada[56] = 0X01;
+   entrada[57] = 0X00;
+   entrada[58] = 0X00;
+   entrada[59] = 0X00;
+   DWORD clusterfree = OccupyFreeCluster();//entrada FAT
+   entrada[60] = clusterfree;
+   entrada[61] =(clusterfree/16)/16;
+   entrada[62] = ((((clusterfree/16)/16)/16)/16);
+   entrada[63] =((((((clusterfree/16)/16)/16)/16)/16)/16);
+
+   free(entrada);
+
+   char* workingDirAux = malloc(MAX_PATH_SIZE);
+   unsigned char* buffer = malloc(MAX_PATH_SIZE);
+
+   strcpy(workingDirAux, workingDir);
+
+   if(linkname[0] == '/'){ //absoluto
+   i = 0;
+        while(link_path[i] != '\0')
+        {buffer[i] = link_path[i]; i++;}
+        buffer[i] = '\0';
+   }
+    else
+    {
+        if(linkname[0] == '.' && linkname[1] == '.')  // relativo pai
+        {
+            while(strlen(workingDirAux) > 1 && workingDirAux[strlen(workingDirAux)-1] == '/') //tira qualquer '/' do final
+                workingDirAux[strlen(workingDirAux)-1] = '\0';
+            while(strlen(workingDirAux) > 1 && workingDirAux[strlen(workingDirAux)-1] != '/') //pega path do pai
+                workingDirAux[strlen(workingDirAux)-1] = '\0';
+            
+            if(strlen(workingDirAux) == 1 && strlen(linkname) != 2)
+                strcat(workingDirAux,linkname+3);
+            else
+                strcat(workingDirAux,linkname+2);
+        }
+        else  //relativo CWD
+        {
+            while(strlen(workingDirAux) > 1 && workingDirAux[strlen(workingDirAux)-1] == '/') //tira qualquer '/' do final
+                workingDirAux[strlen(workingDirAux)-1] = '\0';
+            if(linkname[0] == '.')
+		strcat(workingDirAux,linkname+1);//copia tirando o '.'
+            else
+		strcat(workingDirAux,linkname);
+        }
+         i = 0;
+        while(link_path[i] != '\0')
+        {buffer[i] = link_path[i]; i++;}
+        buffer[i] = '\0';
+    }
+    free(linkname);
+
+    DWORD sector_cluster = SetorLogico_ClusterDados(clusterfree);
+    
+    if(write_sector(sector_cluster,buffer)){free(buffer);return -1;}
+    
+    free(buffer);
+    return 0;
 
 
-
+}
